@@ -129,6 +129,20 @@ impl Color {
 
         Self::from_rgba(bytes[1], bytes[2], bytes[3], 255)
     }
+    
+    /// Build a color from a hexadecimal u32
+    /// Example: 0x3CA7D5 - a light blue
+    pub fn from_hex_rgb(hex: u32) -> Color {
+        let bytes: [u8; 4] = hex.to_be_bytes();
+        
+        Self::from_rgba(bytes[1], bytes[2], bytes[3], 255)
+    }
+    
+    pub fn from_hex_argb(hex: u32) -> Color {
+        let bytes: [u8; 4] = hex.to_be_bytes();
+        
+        Self::from_rgba(bytes[1], bytes[2], bytes[3], bytes[0])
+    }
 
     /// Create a vec4 of red, green, blue, and alpha components.
     pub const fn to_vec(&self) -> glam::Vec4 {
@@ -259,9 +273,9 @@ pub fn rgb_to_hsl(color: Color) -> (f32, f32, f32) {
     };
 
     // Fix wraparounds
-    if h < 0 as f32 {
+    if h < 0. {
         h += 1.0;
-    } else if h > 1 as f32 {
+    } else if h > 1. {
         h -= 1.0;
     }
 
