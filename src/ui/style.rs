@@ -18,7 +18,7 @@ use std::{
 pub struct StyleBuilder {
     atlas: Arc<Mutex<Atlas>>,
     font: Arc<Mutex<Font>>,
-    font_size: u16,
+    font_size: f32,
     text_color: Color,
     text_color_hovered: Color,
     text_color_clicked: Color,
@@ -41,7 +41,7 @@ impl StyleBuilder {
         StyleBuilder {
             atlas,
             font: default_font,
-            font_size: 16,
+            font_size: 16.,
             text_color: Color::from_rgba(0, 0, 0, 255),
             text_color_hovered: Color::from_rgba(0, 0, 0, 255),
             text_color_clicked: Color::from_rgba(0, 0, 0, 255),
@@ -135,7 +135,7 @@ impl StyleBuilder {
         }
     }
 
-    pub fn font_size(self, font_size: u16) -> StyleBuilder {
+    pub fn font_size(self, font_size: f32) -> StyleBuilder {
         StyleBuilder { font_size, ..self }
     }
 
@@ -230,31 +230,31 @@ impl StyleBuilder {
 
 #[derive(Debug, Clone)]
 pub struct Style {
-    pub(crate) background: Option<SpriteKey>,
-    pub(crate) background_hovered: Option<SpriteKey>,
-    pub(crate) background_clicked: Option<SpriteKey>,
-    pub(crate) color: Color,
-    pub(crate) color_inactive: Option<Color>,
-    pub(crate) color_hovered: Color,
-    pub(crate) color_clicked: Color,
-    pub(crate) color_selected: Color,
-    pub(crate) color_selected_hovered: Color,
+    pub background: Option<SpriteKey>,
+    pub background_hovered: Option<SpriteKey>,
+    pub background_clicked: Option<SpriteKey>,
+    pub color: Color,
+    pub color_inactive: Option<Color>,
+    pub color_hovered: Color,
+    pub color_clicked: Color,
+    pub color_selected: Color,
+    pub color_selected_hovered: Color,
     /// Margins of background image
     /// Applies to background/background_hovered/background_clicked etc
     /// Part of the texture within the margin would not be scaled, which is useful
     /// for things like element borders
-    pub(crate) background_margin: Option<RectOffset>,
+    pub background_margin: Option<RectOffset>,
     /// Margin that do not affect textures
     /// Useful to leave some empty space between element border and element content
     /// Maybe be negative to compensate background_margin when content should overlap the
     /// borders
-    pub(crate) margin: Option<RectOffset>,
-    pub(crate) font: Arc<Mutex<Font>>,
-    pub(crate) text_color: Color,
-    pub(crate) text_color_hovered: Color,
-    pub(crate) text_color_clicked: Color,
-    pub(crate) font_size: u16,
-    pub(crate) reverse_background_z: bool,
+    pub margin: Option<RectOffset>,
+    pub font: Arc<Mutex<Font>>,
+    pub text_color: Color,
+    pub text_color_hovered: Color,
+    pub text_color_clicked: Color,
+    pub font_size: f32,
+    pub reverse_background_z: bool,
 }
 
 impl Style {
@@ -269,7 +269,7 @@ impl Style {
             text_color: Color::from_rgba(0, 0, 0, 255),
             text_color_hovered: Color::from_rgba(0, 0, 0, 255),
             text_color_clicked: Color::from_rgba(0, 0, 0, 255),
-            font_size: 16,
+            font_size: 16.,
             color: Color::from_rgba(255, 255, 255, 255),
             color_hovered: Color::from_rgba(255, 255, 255, 255),
             color_clicked: Color::from_rgba(255, 255, 255, 255),
@@ -465,7 +465,7 @@ impl Skin {
             },
             checkbox_style: Style {
                 text_color: Color::from_rgba(0, 0, 0, 255),
-                font_size: 16,
+                font_size: 16.,
                 color: Color::from_rgba(200, 200, 200, 255),
                 color_hovered: Color::from_rgba(210, 210, 210, 255),
                 color_clicked: Color::from_rgba(150, 150, 150, 255),

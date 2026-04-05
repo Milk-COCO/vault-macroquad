@@ -26,10 +26,30 @@ impl Group {
             hoverable: false,
         }
     }
+    
+    pub fn with_size(id: Id, size: impl Into<Vec2>) -> Group {
+        let size = size.into();
+        Group {
+            id,
+            size,
+            position: None,
+            layout: Layout::Horizontal,
+            draggable: false,
+            highlight: false,
+            hoverable: false,
+        }
+    }
 
     pub const fn position(self, position: Vec2) -> Group {
         Group {
             position: Some(position),
+            ..self
+        }
+    }
+    
+    pub fn set_pos(self, position: impl Into<Vec2>) -> Group {
+        Group {
+            position: Some(position.into()),
             ..self
         }
     }
@@ -177,7 +197,7 @@ impl GroupToken {
 }
 
 impl Ui {
-    pub fn group<F: FnOnce(&mut Ui)>(&mut self, id: Id, size: Vec2, f: F) -> Drag {
-        Group::new(id, size).ui(self, f)
+    pub fn group<F: FnOnce(&mut Ui)>(&mut self, id: Id, size: impl Into<Vec2>, f: F) -> Drag {
+        Group::new(id, size.into()).ui(self, f)
     }
 }

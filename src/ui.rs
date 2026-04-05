@@ -74,6 +74,8 @@ use crate::{
 };
 
 use std::collections::HashMap;
+use std::ops::Deref;
+
 mod cursor;
 mod input;
 mod key_repeat;
@@ -176,8 +178,8 @@ impl Window {
         }
     }
 
-    pub fn resize(&mut self, size: Vec2) {
-        self.size = size;
+    pub fn resize(&mut self, size: impl Into<Vec2>) {
+        self.size = size.into();
         self.cursor = Cursor::new(
             Rect::new(
                 self.position.x + self.window_margin.left,
@@ -209,7 +211,8 @@ impl Window {
         )
     }
 
-    pub fn set_position(&mut self, position: Vec2) {
+    pub fn set_position(&mut self, position: impl Into<Vec2>) {
+        let position = position.into();
         self.position = position;
         self.cursor.area.x = position.x + self.window_margin.left;
         self.cursor.area.y = position.y + self.title_height + self.window_margin.top;
@@ -654,12 +657,17 @@ impl Ui {
     ) -> Ui {
         let atlas = Arc::new(Mutex::new(Atlas::new(ctx, miniquad::FilterMode::Nearest)));
         let font =
-            crate::text::Font::load_from_bytes(atlas.clone(), include_bytes!("ProggyClean.ttf"))
+            Font::load_from_bytes(atlas.clone(), include_bytes!("ProggyClean.ttf"))
                 .unwrap();
-
-        for character in crate::text::Font::ascii_character_list() {
-            font.cache_glyph(character, 13);
-        }
+        
+        // wtf bro 这有啥用？？
+        // Font::cache_glyph_many(
+        //     font.font.deref(),
+        //     font.atlas.lock().unwrap().deref_mut(),
+        //     font.characters.lock().unwrap().deref_mut(),
+        //     Font::ascii_character_list().into_iter(),
+        //     13.
+        // );
 
         atlas
             .lock()
@@ -824,7 +832,9 @@ impl Ui {
         }
     }
 
-    pub(crate) fn begin_modal(&mut self, id: Id, position: Vec2, size: Vec2) -> WindowContext {
+    pub(crate) fn begin_modal<V: Into<Vec2>>(&mut self, id: Id, position: V, size: V) -> WindowContext {
+        let position = position.into();
+        let size = size.into();
         self.input.window_active = true;
         self.in_modal = true;
 
@@ -1180,8 +1190,8 @@ impl Ui {
         self.storage_any.get_or_default(id)
     }
 
-    pub fn push_skin(&mut self, skin: &Skin) {
-        self.skin_stack.custom_skin_stack.push(skin.clone());
+    pub fn push_skin(&mut self, skin: Skin) {
+        self.skin_stack.custom_skin_stack.push(skin);
     }
 
     pub fn pop_skin(&mut self) {

@@ -76,7 +76,7 @@ impl<'a> Label<'a> {
 }
 
 impl Ui {
-    pub fn label<P: Into<Option<Vec2>>>(&mut self, position: P, label: &str) {
+    pub fn label<P: Into<Option<Vec2>>>(&mut self, label: &str, position: P) {
         Label::new(label).position(position).ui(self);
     }
 

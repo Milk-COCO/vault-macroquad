@@ -33,3 +33,15 @@ pub fn clamp<T: PartialOrd>(value: T, min: T, max: T) -> T {
         value
     }
 }
+
+pub const TEXT_LB: (f32, f32) = (-1.,-1.);
+pub const TEXT_LT: (f32, f32) = (-1.,1.);
+pub const TEXT_RB: (f32, f32) = (1.,-1.);
+pub const TEXT_RT: (f32, f32) = (1.,1.);
+
+pub const TEXT_CB: (f32, f32) = (0.,-1.);
+pub const TEXT_CT: (f32, f32) = (0.,1.);
+pub const TEXT_LC: (f32, f32) = (1.,0.);
+pub const TEXT_RC: (f32, f32) = (1.,0.);
+
+pub const TEXT_CC: (f32, f32) = (0.,0.);

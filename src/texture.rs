@@ -514,17 +514,18 @@ impl Default for DrawTextureParams {
     }
 }
 
-pub fn draw_texture(texture: &Texture2D, x: f32, y: f32, color: Color) {
-    draw_texture_ex(texture, x, y, color, Default::default());
+pub fn draw_texture(texture: &Texture2D, pos: impl Into<(f32,f32)>, color: Color) {
+    draw_texture_ex(texture, pos, color, Default::default());
 }
 
 pub fn draw_texture_ex(
     texture: &Texture2D,
-    x: f32,
-    y: f32,
+    pos: impl Into<(f32,f32)>,
     color: Color,
     params: DrawTextureParams,
 ) {
+    let (x,y) = pos.into();
+    
     let context = get_context();
 
     let [mut width, mut height] = texture.size().to_array();

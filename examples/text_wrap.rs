@@ -7,7 +7,7 @@ are preserved.";
 
 #[macroquad::main("Text Wrap")]
 async fn main() {
-    let font_size = 24;
+    let font_size = 24.0;
     loop {
         clear_background(BLACK);
 
@@ -17,18 +17,16 @@ async fn main() {
 
         draw_multiline_text(
             &text,
-            20.0,
-            20.0 + dimensions.offset_y,
+            (20.0, 20.0 + dimensions.offset_y),
+            TEXT_LB,
             font_size as f32,
             Some(1.0),
             WHITE,
         );
-        draw_rectangle_lines(20.0, 20.0, dimensions.width, dimensions.height, 2.0, BLUE);
+        draw_rectangle_lines((20.0, 20.0), (dimensions.width, dimensions.height), 2.0, BLUE);
         draw_line(
-            20.0 + maximum_line_length,
-            0.0,
-            20.0 + maximum_line_length,
-            screen_height(),
+            (20.0 + maximum_line_length, 0.0),
+            (20.0 + maximum_line_length, screen_height()),
             1.0,
             RED,
         );

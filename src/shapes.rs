@@ -24,14 +24,16 @@ pub fn draw_triangle(v1: Vec2, v2: Vec2, v3: Vec2, color: Color) {
 
 /// Draws a triangle outline between points `v1`, `v2`, and `v3` with a given line `thickness` and `color`.
 pub fn draw_triangle_lines(v1: Vec2, v2: Vec2, v3: Vec2, thickness: f32, color: Color) {
-    draw_line(v1.x, v1.y, v2.x, v2.y, thickness, color);
-    draw_line(v2.x, v2.y, v3.x, v3.y, thickness, color);
-    draw_line(v3.x, v3.y, v1.x, v1.y, thickness, color);
+    draw_line((v1.x, v1.y), (v2.x, v2.y), thickness, color);
+    draw_line((v2.x, v2.y), (v3.x, v3.y), thickness, color);
+    draw_line((v3.x, v3.y), (v1.x, v1.y), thickness, color);
 }
 
 /// Draws a solid rectangle with its top-left corner at `[x, y]` with size `[w, h]` (width going to
 /// the right, height going down), with a given `color`.
-pub fn draw_rectangle(x: f32, y: f32, w: f32, h: f32, color: Color) {
+pub fn draw_rectangle(pos: impl Into<(f32, f32)>, size: impl Into<(f32, f32)>, color: Color) {
+    let (x,y) = pos.into();
+    let (w,h) = size.into();
     let context = get_context();
 
     #[rustfmt::skip]
@@ -50,7 +52,9 @@ pub fn draw_rectangle(x: f32, y: f32, w: f32, h: f32, color: Color) {
 
 /// Draws a rectangle outline with its top-left corner at `[x, y]` with size `[w, h]` (width going to
 /// the right, height going down), with a given line `thickness` and `color`.
-pub fn draw_rectangle_lines(x: f32, y: f32, w: f32, h: f32, thickness: f32, color: Color) {
+pub fn draw_rectangle_lines(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, thickness: f32, color: Color) {
+    let (x,y) = pos.into();
+    let (w,h) = size.into();
     let context = get_context();
     let t = thickness / 2.;
 
@@ -76,13 +80,14 @@ pub fn draw_rectangle_lines(x: f32, y: f32, w: f32, h: f32, thickness: f32, colo
 }
 
 pub fn draw_rectangle_lines_ex(
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
+    pos: impl Into<(f32,f32)>,
+    size: impl Into<(f32,f32)>,
     thickness: f32,
     params: DrawRectangleParams,
 ) {
+    let (x,y) = pos.into();
+    let (w,h) = size.into();
+    
     let context = get_context();
     let tx = thickness / w;
     let ty = thickness / h;
@@ -159,7 +164,9 @@ impl Default for DrawRectangleParams {
 
 /// Draws a solid rectangle with its position at `[x, y]` with size `[w, h]`,
 /// with parameters.
-pub fn draw_rectangle_ex(x: f32, y: f32, w: f32, h: f32, params: DrawRectangleParams) {
+pub fn draw_rectangle_ex(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, params: DrawRectangleParams) {
+    let (x,y) = pos.into();
+    let (w,h) = size.into();
     let context = get_context();
     let transform_matrix = Mat4::from_translation(vec3(x, y, 0.0))
         * Mat4::from_axis_angle(vec3(0.0, 0.0, 1.0), params.rotation)
@@ -191,24 +198,27 @@ pub fn draw_rectangle_ex(x: f32, y: f32, w: f32, h: f32, params: DrawRectanglePa
 /// defined by `border`, orientation defined by `vertical` (when `true`, the hexagon points along
 /// the `y` axis), and colors for outline given by `border_color` and fill by `fill_color`.
 pub fn draw_hexagon(
-    x: f32,
-    y: f32,
+    pos: impl Into<(f32,f32)>,
     size: f32,
     border: f32,
     vertical: bool,
     border_color: Color,
     fill_color: Color,
 ) {
+    let (x,y) = pos.into();
+    
     let rotation = if vertical { 90. } else { 0. };
-    draw_poly(x, y, 6, size, rotation, fill_color);
+    draw_poly((x, y), 6, size, rotation, fill_color);
     if border > 0. {
-        draw_poly_lines(x, y, 6, size, rotation, border, border_color);
+        draw_poly_lines((x, y), 6, size, rotation, border, border_color);
     }
 }
 
 /// Draws a solid regular polygon centered at `[x, y]` with a given number of `sides`, `radius`,
 /// clockwise `rotation` (in degrees) and `color`.
-pub fn draw_poly(x: f32, y: f32, sides: u8, radius: f32, rotation: f32, color: Color) {
+pub fn draw_poly(pos: impl Into<(f32,f32)>, sides: u8, radius: f32, rotation: f32, color: Color) {
+    let (x,y) = pos.into();
+
     let context = get_context();
 
     let mut vertices = Vec::<Vertex>::with_capacity(sides as usize + 2);
@@ -237,36 +247,39 @@ pub fn draw_poly(x: f32, y: f32, sides: u8, radius: f32, rotation: f32, color: C
 /// Draws a regular polygon outline centered at `[x, y]` with a given number of `sides`, `radius`,
 /// clockwise `rotation` (in degrees), line `thickness`, and `color`.
 pub fn draw_poly_lines(
-    x: f32,
-    y: f32,
+    pos: impl Into<(f32,f32)>,
     sides: u8,
     radius: f32,
     rotation: f32,
     thickness: f32,
     color: Color,
 ) {
-    draw_arc(x, y, sides, radius, rotation, thickness, 360.0, color);
+    draw_arc(pos, sides, radius, rotation, thickness, 360.0, color);
 }
 
 /// Draws a solid circle centered at `[x, y]` with a given radius `r` and `color`.
 ///
 /// This is not a perfect circle, but only a polygon approximation.
 /// If this is an issue for you, consider using `draw_poly(x, y, 255, r, 0., color)` instead.
-pub fn draw_circle(x: f32, y: f32, r: f32, color: Color) {
-    draw_poly(x, y, 20, r, 0., color);
+pub fn draw_circle(pos: impl Into<(f32,f32)>, r: f32, color: Color) {
+
+    draw_poly(pos, 20, r, 0., color);
 }
 
 /// Draws a circle outline centered at `[x, y]` with a given radius, line `thickness` and `color`.
 ///
 /// This is not a perfect circle, but only a polygon approximation.
 /// If this is an issue for you, consider using `draw_poly_lines(x, y, 255, r, 0., thickness, color)` instead.
-pub fn draw_circle_lines(x: f32, y: f32, r: f32, thickness: f32, color: Color) {
-    draw_poly_lines(x, y, 30, r, 0., thickness, color);
+pub fn draw_circle_lines(pos: impl Into<(f32,f32)>, r: f32, thickness: f32, color: Color) {
+    draw_poly_lines(pos, 30, r, 0., thickness, color);
 }
 
 /// Draws a solid ellipse centered at `[x, y]` with a given size `[w, h]`,
 /// clockwise `rotation` (in degrees) and `color`.
-pub fn draw_ellipse(x: f32, y: f32, w: f32, h: f32, rotation: f32, color: Color) {
+pub fn draw_ellipse(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, rotation: f32, color: Color) {
+    let (x,y) = pos.into();
+    let (w,h) = size.into();
+    
     let sides = 20;
     let context = get_context();
 
@@ -302,14 +315,15 @@ pub fn draw_ellipse(x: f32, y: f32, w: f32, h: f32, rotation: f32, color: Color)
 /// Draws an ellipse outline centered at `[x, y]` with a given size `[w, h]`,
 /// clockwise `rotation` (in degrees), line `thickness` and `color`.
 pub fn draw_ellipse_lines(
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
+    pos: impl Into<(f32,f32)>,
+    size: impl Into<(f32,f32)>,
     rotation: f32,
     thickness: f32,
     color: Color,
 ) {
+    let (x,y) = pos.into();
+    let (w,h) = size.into();
+    
     let sides = 20;
 
     let rot = rotation.to_radians();
@@ -334,12 +348,15 @@ pub fn draw_ellipse_lines(
 
         let p1 = vec2(x + rotated_x, y + rotated_y);
 
-        draw_line(p0.x, p0.y, p1.x, p1.y, thickness, color);
+        draw_line((p0.x, p0.y), (p1.x, p1.y), thickness, color);
     }
 }
 
 /// Draws a line between points `[x1, y1]` and `[x2, y2]` with a given `thickness` and `color`.
-pub fn draw_line(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32, color: Color) {
+pub fn draw_line(pos1: impl Into<(f32,f32)>, pos2: impl Into<(f32,f32)>, thickness: f32, color: Color) {
+    let (x1,y1) = pos1.into();
+    let (x2,y2) = pos2.into();
+    
     let context = get_context();
     let dx = x2 - x1;
     let dy = y2 - y1;
@@ -372,8 +389,7 @@ pub fn draw_line(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32, color: Colo
 /// Draw arc from `rotation`(in degrees) to `arc + rotation` (`arc` in degrees),
 /// centered at `[x, y]` with a given number of `sides`, `radius`, line `thickness`, and `color`.
 pub fn draw_arc(
-    x: f32,
-    y: f32,
+    pos: impl Into<(f32,f32)>,
     sides: u8,
     radius: f32,
     rotation: f32,
@@ -381,6 +397,8 @@ pub fn draw_arc(
     arc: f32,
     color: Color,
 ) {
+    let (x,y) = pos.into();
+    
     let rot = rotation.to_radians();
     let part = arc.to_radians();
 

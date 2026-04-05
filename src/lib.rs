@@ -170,7 +170,7 @@ pub(crate) mod thread_assert {
                 static CURRENT_THREAD_ID: std::thread::ThreadId = std::thread::current().id();
             }
             assert!(THREAD_ID.is_some());
-            assert!(THREAD_ID.unwrap() == CURRENT_THREAD_ID.with(|id| *id));
+            assert_eq!(THREAD_ID.unwrap(), CURRENT_THREAD_ID.with(|id| *id));
         }
     }
 }

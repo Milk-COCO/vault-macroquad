@@ -1,6 +1,7 @@
 //! Resolve high-level drawing primitive + given style into DrawCommand
 //! DrawCommand will later rasterized into mesh in mesh_rasterizer.rs
 
+use std::ops::Deref;
 use crate::{
     color::Color,
     math::{vec2, Rect, RectOffset, Vec2},
@@ -13,6 +14,7 @@ use crate::{
 };
 
 use std::sync::{Arc, Mutex};
+use ordered_float::OrderedFloat;
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct ElementState {
@@ -174,8 +176,8 @@ impl Painter {
     /// calculate character horizontal size,
     /// usually used as an advance between current cursor position
     /// and next potential character
-    pub fn character_advance(&self, character: char, font: &Font, font_size: u16) -> f32 {
-        if let Some(font_data) = font.get(character, font_size) {
+    pub fn character_advance(&self, character: char, font: &Font, font_size: f32) -> f32 {
+        if let Some(font_data) = font.characters.lock().unwrap().get(&(character, OrderedFloat::from(font_size))) {
             return font_data.advance;
         }
 
@@ -309,7 +311,7 @@ impl Painter {
         label: &str,
         _multiline: Option<f32>,
         font: &mut Font,
-        font_size: u16,
+        font_size: f32,
     ) -> TextDimensions {
         font.measure_text(label, font_size, 1.0, 1.0, |_| {})
     }
@@ -321,13 +323,13 @@ impl Painter {
         position: Vec2,
         color: Color,
         font: &mut Font,
-        font_size: u16,
+        font_size: f32,
     ) -> Option<f32> {
-        if font.get(character, font_size).is_none() {
-            font.cache_glyph(character, font_size);
-        }
+        font.cache_glyph(character, font_size);
+        let chars_guard = font.characters.lock().unwrap();
+        let characters = chars_guard.deref();
 
-        if let Some(font_data) = font.get(character, font_size) {
+        if let Some(font_data) = characters.get(&(character, OrderedFloat::from(font_size))) {
             let glyph = self
                 .font_atlas
                 .lock()
@@ -376,7 +378,7 @@ impl Painter {
         position: Vec2,
         params: T,
         font: &mut Font,
-        font_size: u16,
+        font_size: f32,
     ) {
         if self.clipping_zone.map_or(false, |clip| {
             !clip.overlaps(&Rect::new(position.x - 150., position.y - 25., 200., 50.))

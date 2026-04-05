@@ -29,9 +29,9 @@ impl<'a> Button<'a> {
         Button { position, ..self }
     }
 
-    pub fn size(self, size: Vec2) -> Self {
+    pub fn size(self, size: impl Into<Vec2>) -> Self {
         Button {
-            size: Some(size),
+            size: Some(size.into()),
             ..self
         }
     }
@@ -40,6 +40,8 @@ impl<'a> Button<'a> {
         Button { selected, ..self }
     }
 
+    /// 将按钮展示在当前域上，并返回当前是否为被按下的第一时刻。
+    ///
     pub fn ui(self, ui: &mut Ui) -> bool {
         let mut context = ui.get_active_window_context();
 
@@ -103,10 +105,13 @@ impl<'a> Button<'a> {
 }
 
 impl Ui {
+    /// 快捷创建并添加按钮
+    ///
+    /// 调用 [`Button`]`::`[`new`](Button::new)`(label).`[`position`](Button::position)`(position).`[`ui`](Button::ui)`(&mut self)`
     pub fn button<'a, P: Into<Option<Vec2>>, S: Into<UiContent<'a>>>(
         &mut self,
-        position: P,
         label: S,
+        position: P,
     ) -> bool {
         Button::new(label).position(position).ui(self)
     }

@@ -3,6 +3,11 @@ use crate::{
     ui::{ElementState, Id, Ui, UiContent, WindowContext},
 };
 
+/// [`WindowContext`] 的构造器。
+///
+/// 构造一个显示在程序内部的窗口，当然不是系统原生窗口。
+///
+/// [`Window::new`] 一个窗口，预设要进行的操作，并调用 [`Window::begin`] 来构造 [`WindowToken`]。或者使用 [`Window::ui`] 来快捷插入组件。
 #[derive(Debug, Clone)]
 pub struct Window {
     id: Id,
@@ -15,7 +20,10 @@ pub struct Window {
 }
 
 impl Window {
-    pub const fn new(id: Id, position: Vec2, size: Vec2) -> Window {
+    /// 创建窗口，其中位置仅在初次调用有效，大小随时生效。
+    pub fn new<V: Into<Vec2>>(id: Id, position: V, size: V) -> Window {
+        let position = position.into();
+        let size = size.into();
         Window {
             id,
             position,
@@ -27,6 +35,11 @@ impl Window {
         }
     }
 
+    /// 窗口标题（未设置时不显示标题）
+    ///
+    /// 如果标题栏显示，会（默认居中）显示在标题栏上。
+    ///
+    /// see [`Window::titlebar`]
     pub fn label(self, label: &str) -> Window {
         Window {
             label: Some(label.to_string()),
@@ -34,19 +47,17 @@ impl Window {
         }
     }
 
-    /// If moveable is set to true then it means that the user
-    /// can drag the window (default).
+    /// 可被用户拖动（默认 `true`）
     ///
-    /// After the first frame the window got drawn it will stop looking at the position given
-    /// to it and instead will have its position be fully in control by the user.
-    ///
-    ///
-    /// If on the other hand it is false then the position of this window will
-    /// always be equal to the value given.
+    /// 此属性只在第一次设置时有效。
     pub fn movable(self, movable: bool) -> Window {
         Window { movable, ..self }
     }
-
+    
+    
+    /// 是否显示关闭按钮（默认 `false`）
+    ///
+    /// 关闭按钮不占空间。结果在 [`Window::ui`] 的返回值提供
     pub fn close_button(self, close_button: bool) -> Window {
         Window {
             close_button,
@@ -54,16 +65,33 @@ impl Window {
         }
     }
 
+    /// 是否显示标题栏（默认 `true`）
+    ///
+    /// 标题栏占空间。并且是否真正地占空间取决于第一次设置。
+    // TODO: plzz fix the fooing bar
     pub fn titlebar(self, titlebar: bool) -> Window {
         Window { titlebar, ..self }
     }
 
+    /// 快速构造 Window 上下文，并将内容封入 [`Ui`] 节点
+    ///
+    /// 提供 [`Ui`]，依次调用 [`Window::begin`]、 传入的`f`、[`WindowToken::end`]
+    ///
+    /// 并返回当前是否需要保持开启（返回 `false` 即为当前是 关闭按钮 被按下的第一时刻）。
+    ///
     pub fn ui<F: FnOnce(&mut Ui)>(self, ui: &mut Ui, f: F) -> bool {
         let token = self.begin(ui);
         f(ui);
         token.end(ui)
     }
-
+    
+    /// 给提供的 [`Ui`] 节点构造 Window 上下文，将其加入
+    ///
+    /// 内部调用 [`Ui::begin_window`] ，传入当前 [`Window`] 的数据来开启窗口域。
+    ///
+    /// 最后你需要调用 [`WindowToken::end`] 来结束域。
+    ///
+    /// [`Window::ui`] 是 begin-end 的简易封装。
     pub fn begin(self, ui: &mut Ui) -> WindowToken {
         let context = ui.begin_window(
             self.id,
@@ -172,6 +200,7 @@ impl Window {
 pub struct WindowToken;
 
 impl WindowToken {
+    /// 结束 Window域，返回当前是否需要保持开启（返回 `false` 即为当前是 关闭按钮 被按下的第一时刻）。
     pub fn end(self, ui: &mut Ui) -> bool {
         let context = ui.get_active_window_context();
         context.window.painter.clip(None);
@@ -185,7 +214,7 @@ impl WindowToken {
 }
 
 impl Ui {
-    pub fn window<F: FnOnce(&mut Ui)>(&mut self, id: Id, position: Vec2, size: Vec2, f: F) -> bool {
+    pub fn window<V: Into<Vec2>, F: FnOnce(&mut Ui)>(&mut self, id: Id, position: V, size: V, f: F) -> bool {
         Window::new(id, position, size).titlebar(false).ui(self, f)
     }
 }

@@ -42,7 +42,7 @@ fn profiler_window(ui: &mut Ui, state: &mut ProfilerState) {
                 }
             });
         } else {
-            ui.label(None, &label);
+            ui.label(&label, None);
         }
     }
 
@@ -104,27 +104,27 @@ fn profiler_window(ui: &mut Ui, state: &mut ProfilerState) {
         .or_else(|| state.frames_buffer.get(0))
     {
         ui.label(
-            None,
             &format!(
                 "Full frame time: {:.3}ms {:.1}(1/t)",
                 frame.full_frame_time * 1000.0,
                 (1.0 / frame.full_frame_time)
             ),
+            None,
         );
     }
 
     if state.paused {
-        if ui.button(None, "resume") {
+        if ui.button("resume", None) {
             state.paused = false;
         }
     } else {
-        if ui.button(None, "pause") {
+        if ui.button("pause", None) {
             state.paused = true;
         }
     }
     if state.selected_frame.is_some() {
         ui.same_line(100.0);
-        if ui.button(None, "deselect frame") {
+        if ui.button("deselect frame", None) {
             state.selected_frame = None;
         }
     }
@@ -148,12 +148,12 @@ fn profiler_window(ui: &mut Ui, state: &mut ProfilerState) {
         for query in queries {
             let t = query.1 as f64 / 1_000_000_000.0;
             ui.label(
-                None,
                 &format!("{}: {:.3}ms {:.1}(1/t)", query.0, t * 1000.0, 1.0 / t),
+                None,
             );
         }
     });
-    if ui.button(None, "sample gpu") {
+    if ui.button("sample gpu", None) {
         telemetry::sample_gpu_queries();
     }
 }
@@ -187,10 +187,9 @@ pub fn profiler(params: ProfilerParams) {
     let mut sum = 0.0;
     for (x, time) in state.fps_buffer.iter().enumerate() {
         draw_line(
-            x as f32 + params.fps_counter_pos.x,
-            params.fps_counter_pos.y + 100.0,
-            x as f32 + params.fps_counter_pos.x,
-            params.fps_counter_pos.y + 100.0 - (time * 2000.0).min(100.0),
+            (x as f32 + params.fps_counter_pos.x, params.fps_counter_pos.y + 100.0),
+            (x as f32 + params.fps_counter_pos.x,
+                params.fps_counter_pos.y + 100.0 - (time * 2000.0).min(100.0)),
             1.0,
             BLUE,
         );
@@ -206,10 +205,8 @@ pub fn profiler(params: ProfilerParams) {
 
     if selectable_rect.contains(mouse_position().into()) {
         draw_rectangle(
-            selectable_rect.x,
-            selectable_rect.y,
-            100.0,
-            100.0,
+            (selectable_rect.x, selectable_rect.y),
+            (100.0, 100.0),
             Color::new(1.0, 1.0, 1.0, 0.4),
         );
         if is_mouse_button_pressed(MouseButton::Left) {
@@ -224,8 +221,8 @@ pub fn profiler(params: ProfilerParams) {
 
     draw_text(
         &format!("{:.1}", 1.0 / (sum / state.fps_buffer.len() as f32)),
-        params.fps_counter_pos.x,
-        params.fps_counter_pos.y + 100.0,
+        (params.fps_counter_pos.x, params.fps_counter_pos.y + 100.0),
+        (-1.,-1.),
         30.0,
         WHITE,
     );
@@ -246,42 +243,42 @@ pub fn profiler(params: ProfilerParams) {
             match tab {
                 0 => profiler_window(ui, &mut state),
                 1 => ui.label(
-                    None,
                     &format!(
                         "scene allocated memory: {:.1} kb",
                         (telemetry::scene_allocated_memory() as f32) / 1000.0
                     ),
+                    None,
                 ),
                 2 => {
                     let drawcalls = telemetry::drawcalls();
-                    ui.label(None, &format!("Draw calls: {}", drawcalls.len()));
+                    ui.label(&format!("Draw calls: {}", drawcalls.len()), None);
                     for telemetry::DrawCallTelemetry { indices_count, .. } in &drawcalls {
                         ui.same_line(0.0);
 
-                        ui.label(None, &format!("{}", indices_count));
+                        ui.label(&format!("{}", indices_count), None);
                         ui.same_line(0.0);
                     }
-                    ui.label(None, " ");
+                    ui.label(" ", None);
 
                     for telemetry::DrawCallTelemetry {
                         indices_count,
                         texture,
                     } in &drawcalls
                     {
-                        ui.label(None, &format!("{}", *indices_count));
+                        ui.label(&format!("{}", *indices_count), None);
                         ui.same_line(0.0);
                         ui.texture(Texture2D::from_miniquad_texture(*texture), 100., 100.0);
                         ui.same_line(0.0);
                     }
-                    ui.label(None, " ");
+                    ui.label(" ", None);
 
-                    if ui.button(None, "Capture frame") {
+                    if ui.button("Capture frame", None) {
                         telemetry::capture_frame();
                     }
                 }
                 3 => {
                     for label in telemetry::strings() {
-                        ui.label(None, &label);
+                        ui.label(&label, None);
                     }
                 }
                 _ => unreachable!(),

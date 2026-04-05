@@ -138,8 +138,7 @@ impl Map {
 
         draw_texture_ex(
             &tileset.texture,
-            dest.x,
-            dest.y,
+            (dest.x, dest.y),
             WHITE,
             DrawTextureParams {
                 dest_size: Some(vec2(dest.w, dest.h)),
@@ -162,8 +161,7 @@ impl Map {
 
         draw_texture_ex(
             &tileset.texture,
-            dest.x,
-            dest.y,
+            (dest.x, dest.y),
             WHITE,
             DrawTextureParams {
                 dest_size: Some(vec2(dest.w, dest.h)),
@@ -245,8 +243,10 @@ impl Map {
         let source = source.unwrap_or(Rect::new(0., 0., img_texture.width(), img_texture.height()));
         draw_texture_ex(
             &img_texture,
-            (layer.offsetx.unwrap() - source.x) / source.w * dest.w + dest.x,
-            (layer.offsety.unwrap() - source.y) / source.h * dest.h + dest.y,
+            (
+                (layer.offsetx.unwrap() - source.x) / source.w * dest.w + dest.x,
+                (layer.offsety.unwrap() - source.y) / source.h * dest.h + dest.y
+            ),
             Color {
                 r: 255.,
                 g: 255.,
@@ -261,7 +261,7 @@ impl Map {
         );
     }
 
-    pub fn tiles(&self, layer: &str, rect: impl Into<Option<Rect>>) -> TilesIterator {
+    pub fn tiles(&self, layer: &str, rect: impl Into<Option<Rect>>) -> TilesIterator<'_> {
         assert!(self.layers.contains_key(layer), "No such layer: {}", layer);
 
         let rect = rect.into().unwrap_or(Rect::new(
