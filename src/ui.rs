@@ -74,7 +74,6 @@ use crate::{
 };
 
 use std::collections::HashMap;
-use std::ops::Deref;
 
 mod cursor;
 mod input;

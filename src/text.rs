@@ -15,7 +15,6 @@ use crate::color::WHITE;
 use glam::vec2;
 
 use std::sync::{Arc, Mutex};
-use ordered_float::OrderedFloat;
 
 pub(crate) mod atlas;
 
@@ -34,7 +33,7 @@ pub(crate) struct CharacterInfo {
 pub struct Font {
     pub(crate) font: Arc<fontdue::Font>,
     pub(crate) atlas: Arc<Mutex<Atlas>>,
-    pub(crate) characters: Arc<Mutex<HashMap<(char, OrderedFloat<f32>), CharacterInfo>>>,
+    pub(crate) characters: Arc<Mutex<HashMap<(char, u16), CharacterInfo>>>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -42,7 +41,8 @@ pub struct TextDimensionsEx {
     pub width: f32,
     pub height: f32,
     pub offset_y: f32,
-    pub chars: Vec<(Rect,Rect,)>
+    pub chars: Vec<(Rect,Rect,)>,
+    pub smooth: f32,
 }
 
 /// World space dimensions of the text, measured by "measure_text" function
@@ -90,7 +90,7 @@ impl Font {
 
     pub(crate) fn set_characters(
         &mut self,
-        characters: Arc<Mutex<HashMap<(char, OrderedFloat<f32>), CharacterInfo>>>,
+        characters: Arc<Mutex<HashMap<(char, u16), CharacterInfo>>>,
     ) {
         self.characters = characters;
     }
@@ -110,12 +110,12 @@ impl Font {
     pub(crate) fn cache_glyph_many(
         font: &fontdue::Font,
         atlas: &mut Atlas,
-        characters: &mut HashMap<(char, OrderedFloat<f32>), CharacterInfo>,
+        characters: &mut HashMap<(char, u16), CharacterInfo>,
         chars: impl Iterator<Item = char>,
         size: f32
     ) {
         for character in chars {
-            if characters.contains_key(&(character, OrderedFloat::from(size))) {
+            if characters.contains_key(&(character, size.round() as u16)) {
                 continue;
             }
             
@@ -148,7 +148,7 @@ impl Font {
             };
             
             characters
-                .insert((character, OrderedFloat::from(size)), character_info);
+                .insert((character, size.round() as u16), character_info);
         }
     }
     
@@ -182,7 +182,7 @@ impl Font {
         for character in text.chars() {
             self.cache_glyph(character, font_size);
 
-            let font_data = &self.characters.lock().unwrap()[&(character, OrderedFloat(font_size))];
+            let font_data = &self.characters.lock().unwrap()[&(character, font_size.round() as u16)];
             let offset_y = font_data.offset_y as f32 * font_scale_y;
 
             let atlas = self.atlas.lock().unwrap();
@@ -339,7 +339,7 @@ pub(crate) fn measure_text_ex_in(
     text: impl AsRef<str>,
     font: &fontdue::Font,
     atlas: &mut Atlas,
-    characters: &mut HashMap<(char, OrderedFloat<f32>), CharacterInfo>,
+    characters: &mut HashMap<(char, u16), CharacterInfo>,
     rot: f32,
     font_size: f32,
     font_scale: f32,
@@ -375,10 +375,13 @@ pub(crate) fn measure_text_ex_in(
         text.chars(), font_size
     );
     
+    let raster_size = font_size.round() as u16;
+    let smooth_scale = font_size / raster_size as f32;
+    
     for character in text.chars() {
-        let char_data = &characters[&(character, OrderedFloat(font_size))];
-        let offset_x = char_data.offset_x as f32 * font_scale_x;
-        let offset_y = char_data.offset_y as f32 * font_scale_y;
+        let char_data = &characters[&(character, raster_size)];
+        let offset_x = char_data.offset_x as f32 * font_scale_x * smooth_scale;
+        let offset_y = char_data.offset_y as f32 * font_scale_y * smooth_scale;
         
         let glyph = atlas.get(char_data.sprite).unwrap().rect;
         let glyph_scaled_h = glyph.h * font_scale_y;
@@ -392,11 +395,11 @@ pub(crate) fn measure_text_ex_in(
         let dest = Rect::new(
             dest_x / dpi_scaling,
             dest_y / dpi_scaling,
-            glyph.w / dpi_scaling * font_scale_x,
-            glyph.h / dpi_scaling * font_scale_y,
+            glyph.w / dpi_scaling * font_scale_x * smooth_scale,
+            glyph.h / dpi_scaling * font_scale_y * smooth_scale,
         );
         
-        total_width += char_data.advance * font_scale_x;
+        total_width += char_data.advance * font_scale_x * smooth_scale;
         
         data.push((glyph, dest))
     }
@@ -408,7 +411,8 @@ pub(crate) fn measure_text_ex_in(
         width: total_width,
         height: total_height,
         offset_y: max_offset_y,
-        chars: data
+        chars: data,
+        smooth: smooth_scale,
     }
 }
 
@@ -484,7 +488,7 @@ pub(crate) fn draw_text_ex_in(
     text: impl AsRef<str>,
     font: &fontdue::Font,
     atlas: &mut Atlas,
-    characters: &mut HashMap<(char, OrderedFloat<f32>), CharacterInfo>,
+    characters: &mut HashMap<(char, u16), CharacterInfo>,
     rot: f32,
     font_size: f32,
     font_scale: f32,
@@ -533,6 +537,8 @@ pub(crate) fn draw_text_ex_in(
     let (x, y) = (ox - dx, oy - dy);
     let data = dim.chars;
     
+    let scale = dim.smooth;
+    
     for (glyph, dest) in data {
         let new_center = vec2(x + dest.x,  y + dest.y);
         crate::texture::draw_texture_ex(
@@ -542,7 +548,7 @@ pub(crate) fn draw_text_ex_in(
             new_center,
             color,
             crate::texture::DrawTextureParams {
-                dest_size: Some(vec2(dest.w, dest.h)),
+                dest_size: Some(vec2(scale * dest.w, scale * dest.h)),
                 source: Some(glyph),
                 rotation: rot,
                 pivot: Some(new_center),

@@ -14,7 +14,6 @@ use crate::{
 };
 
 use std::sync::{Arc, Mutex};
-use ordered_float::OrderedFloat;
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct ElementState {
@@ -177,7 +176,7 @@ impl Painter {
     /// usually used as an advance between current cursor position
     /// and next potential character
     pub fn character_advance(&self, character: char, font: &Font, font_size: f32) -> f32 {
-        if let Some(font_data) = font.characters.lock().unwrap().get(&(character, OrderedFloat::from(font_size))) {
+        if let Some(font_data) = font.characters.lock().unwrap().get(&(character, font_size.round() as u16)) {
             return font_data.advance;
         }
 
@@ -329,7 +328,7 @@ impl Painter {
         let chars_guard = font.characters.lock().unwrap();
         let characters = chars_guard.deref();
 
-        if let Some(font_data) = characters.get(&(character, OrderedFloat::from(font_size))) {
+        if let Some(font_data) = characters.get(&(character, font_size.round() as u16)) {
             let glyph = self
                 .font_atlas
                 .lock()
