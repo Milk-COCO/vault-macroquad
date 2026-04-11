@@ -195,6 +195,11 @@ impl Font {
             offset_y: max_y / dpi_scaling,
         }
     }
+    
+    /// 把自己包装成 `Arc<RwLock<Font>>` 便于使用
+    pub fn shared(self) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(self))
+    }
 }
 
 impl Font {
