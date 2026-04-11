@@ -2,6 +2,7 @@
 
 use crate::{
     color::Color, file::load_file, get_context, get_quad_context, math::Rect,
+    reset_fonts,
     text::atlas::SpriteKey, Error,
 };
 
@@ -955,7 +956,7 @@ pub fn build_textures_atlas() {
 /// There fore resetting the atlas will render all fonts unusable.
 pub unsafe fn reset_textures_atlas() {
     let context = get_context();
-    context.fonts_storage = crate::text::FontsStorage::new(&mut *context.quad_context);
+    reset_fonts();
     context.texture_batcher = Batcher::new(&mut *context.quad_context);
 }
 

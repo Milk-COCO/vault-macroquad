@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use parking_lot::RwLock;
 use macroquad::prelude::*;
 
 #[macroquad::main("Text")]
@@ -5,6 +7,7 @@ async fn main() {
     let font = load_ttf_font("./examples/DancingScriptRegular.ttf")
         .await
         .unwrap();
+    let font = Arc::new(RwLock::new(font));
 
     let mut angle = 0.0;
 
@@ -44,7 +47,7 @@ async fn main() {
             TEXT_LB,
             TextParams {
                 font_size: 50.0,
-                font: Some(&font),
+                font: Some(font.clone()),
                 ..Default::default()
             },
         );
@@ -55,7 +58,7 @@ async fn main() {
             TEXT_LB,
             TextParams {
                 font_size: 100.0,
-                font: Some(&font),
+                font: Some(font.clone()),
                 ..Default::default()
             },
         );
@@ -66,7 +69,7 @@ async fn main() {
             TEXT_LB,
             TextParams {
                 font_size: 70.0,
-                font: Some(&font),
+                font: Some(font.clone()),
                 rotation: angle,
                 ..Default::default()
             },

@@ -40,8 +40,10 @@ use miniquad::*;
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
+use std::ops::DerefMut;
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
+use std::sync::OnceLock;
 
 mod exec;
 mod quad_gl;
@@ -59,7 +61,6 @@ pub mod shapes;
 pub mod text;
 pub mod texture;
 pub mod time;
-pub mod ui;
 pub mod window;
 
 pub mod experimental;
@@ -69,6 +70,7 @@ pub mod prelude;
 pub mod telemetry;
 
 mod error;
+pub mod ui;
 
 pub use error::Error;
 
@@ -150,10 +152,11 @@ use crate::{
     color::{colors::*, Color},
     quad_gl::QuadGl,
     texture::TextureHandle,
-    ui::ui_context::UiContext,
 };
 
 use glam::{vec2, Mat4, Vec2};
+use parking_lot::RwLock;
+use crate::text::FontsStorage;
 
 pub(crate) mod thread_assert {
     static mut THREAD_ID: Option<std::thread::ThreadId> = None;
@@ -205,9 +208,8 @@ struct Context {
     gl: QuadGl,
     camera_matrix: Option<Mat4>,
 
-    ui_context: UiContext,
+    // ui_context: UiContext,
     coroutines_context: experimental::coroutines::CoroutinesContext,
-    fonts_storage: text::FontsStorage,
 
     pc_assets_folder: Option<String>,
 
@@ -315,7 +317,9 @@ impl Context {
         let mut ctx: Box<dyn miniquad::RenderingBackend> =
             miniquad::window::new_rendering_backend();
         let (screen_width, screen_height) = miniquad::window::screen_size();
-
+        
+        init_fonts();
+        
         Context {
             screen_width,
             screen_height,
@@ -348,9 +352,8 @@ impl Context {
                 draw_call_vertex_capacity,
                 draw_call_index_capacity,
             ),
-
-            ui_context: UiContext::new(&mut *ctx, screen_width, screen_height),
-            fonts_storage: text::FontsStorage::new(&mut *ctx),
+            
+            // ui_context: UiContext::new(&mut *ctx, screen_width, screen_height),
             texture_batcher: texture::Batcher::new(&mut *ctx),
             camera_stack: vec![],
 
@@ -401,7 +404,7 @@ impl Context {
     fn begin_frame(&mut self) {
         telemetry::begin_gpu_query("GPU");
 
-        self.ui_context.process_input();
+        // self.ui_context.process_input();
 
         let color = Self::DEFAULT_BG_COLOR;
 
@@ -414,7 +417,7 @@ impl Context {
 
         self.perform_render_passes();
 
-        self.ui_context.draw(get_quad_context(), &mut self.gl);
+        // self.ui_context.draw(get_quad_context(), &mut self.gl);
         let screen_mat = self.pixel_perfect_projection_matrix();
         self.gl.draw(get_quad_context(), screen_mat);
 
@@ -483,6 +486,18 @@ impl Context {
 
 #[no_mangle]
 static mut CONTEXT: Option<Context> = None;
+#[no_mangle]
+static FONTS: OnceLock<RwLock<FontsStorage>> = OnceLock::new();
+
+pub fn init_fonts() {
+    let fonts = FontsStorage::new(miniquad::window::new_rendering_backend().deref_mut());
+    FONTS.set(RwLock::new(fonts)).map_err(|_|panic!("Called `init_fonts()` second time. To refresh fonts, call `reset_fonts()`"));
+}
+
+pub fn reset_fonts() {
+    let fonts = FontsStorage::new(miniquad::window::new_rendering_backend().deref_mut());
+    *FONTS.get().expect("Called `reset_fonts()` before `init_fonts()`").write().deref_mut() = fonts;
+}
 
 // This is required for #[macroquad::test]
 //
@@ -920,6 +935,7 @@ impl Window {
         } = config.into();
         miniquad::start(miniquad_conf, move || {
             thread_assert::set_thread_id();
+            
             let context = Context::new(
                 update_on.unwrap_or_default(),
                 default_filter_mode,

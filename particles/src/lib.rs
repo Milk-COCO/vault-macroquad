@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 use macroquad::window::miniquad::*;
 use miniquad::graphics::RenderPass;
+use macroquad::prelude::quad_rand as rand;
 
 #[cfg(feature = "nanoserde")]
 use nanoserde::{DeJson, SerJson};
