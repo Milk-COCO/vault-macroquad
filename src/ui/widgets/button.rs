@@ -11,6 +11,8 @@ pub struct Button {
     width: f32,
     height: f32,
     text: String,
+    text_color: Color,
+    hovered_text_color: Color,
     bg: Color,
     fg: Color,
     hover: bool,
@@ -20,11 +22,13 @@ pub struct Button {
 
 impl Button {
     /// Creates a new [`Button`] widget.
-    pub fn new(width: f32, height: f32, text: String, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
+    pub fn new(width: f32, height: f32, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
         Self {
             width,
             height,
             text,
+            text_color,
+            hovered_text_color,
             bg,
             fg,
             hover: false,
@@ -69,6 +73,7 @@ impl Widget for Button {
         let (x, y) = pos.into();
         let bg = if self.hover { self.fg } else { self.bg };
         let fg = if self.hover { self.bg } else { self.fg };
+        let text_color = if self.hover { self.text_color } else { self.hovered_text_color };
 
         draw_rectangle((x, y), (self.width, self.height), bg);
         
@@ -83,7 +88,7 @@ impl Widget for Button {
                 font: self.font.clone(),
                 font_size: size,
                 font_scale: 1.0,
-                color: fg,
+                color: text_color,
                 ..Default::default()
             }
         );

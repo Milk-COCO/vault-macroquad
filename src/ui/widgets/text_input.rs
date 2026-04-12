@@ -1,11 +1,11 @@
 //! This module defines the [`TextInput`] widget that allows the user to enter text.
+use super::{Action, Align, Button, Container, Direction, Widget};
+use crate::prelude::*;
+use arboard::Clipboard;
+use parking_lot::RwLock;
 use std::any::Any;
 use std::sync::Arc;
 use std::time::Instant;
-use parking_lot::RwLock;
-use arboard::Clipboard;
-use crate::prelude::*;
-use super::{Action, Widget, WidgetOption, Container, Direction, Align, Button};
 
 /// 文本选择范围
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +93,8 @@ pub struct TextInput {
     cursor_pos: u32,
     selection: Option<Selection>,
     
+    text_color: Color,
+    hovered_text_color: Color,
     bg: Color,
     fg: Color,
     placeholder: Option<String>,
@@ -134,24 +136,26 @@ pub struct TextInput {
 }
 
 impl TextInput {
-    pub fn new(max_length: Option<usize> ,width: f32, height: f32, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
+    pub fn new(max_length: Option<usize>, width: f32, height: f32, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
         let mut menu_container = Container::new(
             Direction::Vertical,
             Align::Start,
-            2.0,
-            Color::new(0.95, 0.95, 0.95, 1.0),
-            Some((5.0, 5.0, 5.0, 5.0)),
-            Some((1.0, Color::new(0.7, 0.7, 0.7, 1.0))),
+            0.0,
+            fg,
+            Some((1.0, 1.0, 1.0, 1.0)),
+            None
         );
-        menu_container.add_child(Button::new(75.0, 28.0, "Cut".to_string(), WHITE, BLACK, font.clone()));
-        menu_container.add_child(Button::new(75.0, 28.0, "Copy".to_string(), WHITE, BLACK, font.clone()));
-        menu_container.add_child(Button::new(75.0, 28.0, "Paste".to_string(), WHITE, BLACK, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
         
         Self {
             text: String::new(),
             cursor_pos: 0,
             selection: None,
             
+            text_color,
+            hovered_text_color,
             bg,
             fg,
             placeholder: None,
@@ -375,6 +379,12 @@ impl TextInput {
         
         (x, y)
     }
+    
+    pub fn draw_context_menu(&self) {
+        if self.context_menu_open {
+            self.context_menu_container.draw(self.context_menu_pos);
+        }
+    }
 }
 
 impl Widget for TextInput {
@@ -406,7 +416,7 @@ impl Widget for TextInput {
         let mx = mouse_pos.0;
         let my = mouse_pos.1;
         
-        let size = self.height * 0.4;
+        // let size = self.height * 0.4;
         let padding = 4.0;
         
         self.just_clicked = false;
@@ -875,7 +885,8 @@ impl Widget for TextInput {
                 }
             );
         } else {
-            // ✅ 修复：可见文本安全裁剪，不会错乱
+            let text_color = if self.hover || self.selected { self.text_color } else { self.hovered_text_color };
+
             let mut visible_text = String::new();
             let mut accumulated_width = 0.0;
             for c in display_text.chars() {
@@ -903,7 +914,7 @@ impl Widget for TextInput {
                     font: self.font.clone(),
                     font_size: size,
                     font_scale: 1.0,
-                    color: fg,
+                    color: text_color,
                     ..Default::default()
                 }
             );
@@ -918,9 +929,9 @@ impl Widget for TextInput {
         
         draw_rectangle_lines((x, y), (self.width, self.height), 2.0, fg);
         
-        if self.context_menu_open {
-            self.context_menu_container.draw(self.context_menu_pos);
-        }
+        // if self.context_menu_open {
+        //     self.context_menu_container.draw(self.context_menu_pos);
+        // }
     }
 }
 

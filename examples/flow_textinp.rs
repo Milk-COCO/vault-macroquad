@@ -1,12 +1,14 @@
 use macroquad::prelude::*;
 
-#[macroquad::main("Images!")]
+#[macroquad::main("Text Inputs!")]
 async fn main() {
     let poppins = load_ttf_font("examples/poppins.ttf").await.unwrap().shared();
+    let dark = Color::new(0.05, 0.05, 0.1, 1.0);
+    let purple = Color::new(0.5, 0.5, 1.0, 1.0);
     let label = Label::new("Text Inputs!".to_string(), Color::new(0.05, 0.05, 0.1, 1.0), Color::new(0.5, 0.5, 1.0, 1.0), Some(poppins.clone()), 48.0);
-    let textinp = TextInput::new(Some(25),512.0, 64.0, Color::new(0.05, 0.05, 0.1, 1.0), Color::new(0.5, 0.5, 1.0, 1.0), Some(poppins.clone()));
-    let textinp2 = TextInput::new(Some(25), 512.0, 64.0, Color::new(0.05, 0.05, 0.1, 1.0), Color::new(0.5, 0.5, 1.0, 1.0), Some(poppins.clone()));
-    let mut container = Container::new(Direction::Vertical, Align::Center, 20.0, Color::new(0.05, 0.05, 0.1, 1.0), None, None);
+    let textinp = TextInput::new(Some(29),512.0, 64.0, dark, purple, dark, purple, Some(poppins.clone()));
+    let textinp2 = TextInput::new(Some(29), 512.0, 64.0, dark, purple, dark, purple, Some(poppins.clone()));
+    let mut container = Container::new(Direction::Vertical, Align::Center, 20.0, dark, None, None);
     container.add_child(label);
     container.add_child(textinp);
     container.add_child(textinp2);
@@ -15,7 +17,7 @@ async fn main() {
     let mut previous_text2 = String::new();
 
     loop {
-        clear_background(Color::new(0.05, 0.05, 0.1, 1.0));
+        clear_background(dark);
         
         container.process((screen_width() / 2.0 - container.width() / 2.0, screen_height() / 2.0 - container.height() / 2.0));
         container.draw((screen_width() / 2.0 - container.width() / 2.0, screen_height() / 2.0 - container.height() / 2.0));
@@ -31,6 +33,9 @@ async fn main() {
             println!("Text2: {}", textinp2.get_text());
             previous_text2 = textinp2.get_text();
         }
+        
+        textinp.draw_context_menu();
+        textinp2.draw_context_menu();
 
         next_frame().await;
     }
