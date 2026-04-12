@@ -70,7 +70,7 @@ impl CoroutinesContext {
 
     pub fn update(&mut self) {
         self.coroutines.retain(|coroutine| {
-            if let CoroutineState::Running(ref mut f) = coroutine {
+            if let CoroutineState::Running(f) = coroutine {
                 if f.manual_poll == false {
                     if let Some(v) = resume(&mut f.future) {
                         if f.has_value {

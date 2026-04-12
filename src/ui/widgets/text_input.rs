@@ -3,8 +3,9 @@ use std::any::Any;
 use std::sync::Arc;
 use std::time::Instant;
 use parking_lot::RwLock;
+use arboard::Clipboard;
 use crate::prelude::*;
-use super::{Action, Widget};
+use super::{Action, Widget, WidgetOption, Container, Direction, Align, Button};
 
 /// 文本选择范围
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,16 +53,14 @@ impl KeyRepeatState {
         
         if is_down {
             if !self.pressed {
-                // 第一次按下
                 self.pressed = true;
                 self.first_press_time = Some(now);
                 self.last_repeat_time = None;
                 true
             } else {
-                // 持续按下，检查重复
                 let first = self.first_press_time.unwrap();
-                let initial_delay = 0.5; // 初始延迟 500ms
-                let repeat_interval = 0.05; // 重复间隔 50ms
+                let initial_delay = 0.5;
+                let repeat_interval = 0.05;
                 
                 if now.duration_since(first).as_secs_f32() > initial_delay {
                     if let Some(last) = self.last_repeat_time {
@@ -113,30 +112,41 @@ pub struct TextInput {
     is_password: bool,
     max_length: Option<usize>,
     
-    // 屏幕位置（用于输入法）
     screen_pos: (f32, f32),
     screen_cursor_pos: (f32, f32),
     
-    // 拖拽选择
     is_dragging: bool,
-    
-    // 回车事件
     just_submitted: bool,
     
-    // 双击检测
     last_click_time: Option<Instant>,
     last_click_pos: (f32, f32),
     
-    // 键盘重复输入状态
     key_left: KeyRepeatState,
     key_right: KeyRepeatState,
     key_backspace: KeyRepeatState,
     key_delete: KeyRepeatState,
+    
+    long_press_start: Option<Instant>,
+    long_press_initial_pos: (f32, f32),
+    context_menu_open: bool,
+    context_menu_pos: (f32, f32),
+    context_menu_container: Container,
 }
 
 impl TextInput {
-    /// Creates a new [`TextInput`] widget.
-    pub fn new(width: f32, height: f32, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
+    pub fn new(max_length: Option<usize> ,width: f32, height: f32, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
+        let mut menu_container = Container::new(
+            Direction::Vertical,
+            Align::Start,
+            2.0,
+            Color::new(0.95, 0.95, 0.95, 1.0),
+            Some((5.0, 5.0, 5.0, 5.0)),
+            Some((1.0, Color::new(0.7, 0.7, 0.7, 1.0))),
+        );
+        menu_container.add_child(Button::new(75.0, 28.0, "Cut".to_string(), WHITE, BLACK, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, "Copy".to_string(), WHITE, BLACK, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, "Paste".to_string(), WHITE, BLACK, font.clone()));
+        
         Self {
             text: String::new(),
             cursor_pos: 0,
@@ -159,7 +169,7 @@ impl TextInput {
             cursor_visible: true,
             
             is_password: false,
-            max_length: None,
+            max_length,
             
             screen_pos: (0.0, 0.0),
             screen_cursor_pos: (0.0, 0.0),
@@ -174,10 +184,14 @@ impl TextInput {
             key_right: KeyRepeatState::new(),
             key_backspace: KeyRepeatState::new(),
             key_delete: KeyRepeatState::new(),
+            
+            long_press_start: None,
+            long_press_initial_pos: (0.0, 0.0),
+            context_menu_open: false,
+            context_menu_pos: (0.0, 0.0),
+            context_menu_container: menu_container,
         }
     }
-    
-    // --- Builder 模式 ---
     
     pub fn with_placeholder(mut self, text: impl Into<String>) -> Self {
         self.placeholder = Some(text.into());
@@ -190,46 +204,47 @@ impl TextInput {
     }
     
     pub fn with_max_length(mut self, max: usize) -> Self {
-        self.max_length = Some(max);
+        self.max_length = Some(max.max(1));
+        // 设置后立刻截断现有文本
+        if let Some(max) = self.max_length {
+            let chars: Vec<char> = self.text.chars().take(max).collect();
+            self.text = chars.into_iter().collect();
+            self.cursor_pos = self.cursor_pos.min(self.text.chars().count() as u32);
+        }
         self
     }
     
-    // --- 公开 API ---
-    
-    /// Returns the text entered in the [`TextInput`] widget.
     pub fn get_text(&self) -> String {
         self.text.clone()
     }
-    
-    /// Sets the text.
     pub fn set_text(&mut self, text: impl Into<String>) {
-        self.text = text.into();
-        self.cursor_pos = self.text.len() as u32;
+        let new_text = text.into();
+        self.text = new_text;
+        
+        let count = self.text.chars().count() as u32;
+        self.cursor_pos = self.cursor_pos.min(count);
         self.selection = None;
     }
     
-    /// Clears the text.
     pub fn clear(&mut self) {
-        self.text.clear();
-        self.cursor_pos = 0;
-        self.selection = None;
+        self.set_text("");
     }
     
-    /// Returns true if the user just pressed Enter.
     pub fn is_submitted(&self) -> bool {
         self.just_submitted
     }
     
-    /// Returns the cursor position on screen (for IME).
     pub fn ime_cursor_screen_pos(&self) -> (f32, f32) {
         self.screen_cursor_pos
     }
     
-    // --- 内部辅助函数 ---
+    fn char_idx_to_byte_idx(&self, s: &str, char_idx: usize) -> usize {
+        s.chars().take(char_idx).map(|c| c.len_utf8()).sum()
+    }
     
     fn display_text(&self) -> String {
         if self.is_password {
-            "*".repeat(self.text.len())
+            "*".repeat(self.text.chars().count())
         } else {
             self.text.clone()
         }
@@ -255,15 +270,28 @@ impl TextInput {
         pos
     }
     
-    fn char_width(&self, c: char, size: f32) -> f32 {
-        measure_text(&c.to_string(), self.font.clone(), size, 1.0).width
+    // ✅ 唯一正确测量：完全使用 measure_text_ex
+    fn measure_ex(&self, text: &str) -> TextDimensionsEx {
+        measure_text_ex(
+            text,
+            self.font.clone(),
+            0.0,
+            self.height * 0.4,
+            1.0,
+            1.0,
+        )
     }
     
-    fn text_width(&self, text: &str, size: f32) -> f32 {
-        measure_text(text, self.font.clone(), size, 1.0).width
+    // 测量前 N 个字符宽度
+    fn measure_prefix_width(&self, chars: impl Iterator<Item = char>) -> f32 {
+        let s: String = chars.collect();
+        self.measure_ex(&s).width
     }
     
-    // 手动实现双击检测
+    fn text_width(&self, text: &str) -> f32 {
+        self.measure_ex(text).width
+    }
+    
     fn check_double_click(&mut self, mouse_pos: (f32, f32)) -> bool {
         let now = Instant::now();
         let (mx, my) = mouse_pos;
@@ -273,7 +301,6 @@ impl TextInput {
             let time_diff = now.duration_since(last_time).as_millis();
             let pos_diff = ((mx - last_x).powi(2) + (my - last_y).powi(2)).sqrt();
             
-            // 300ms 内 + 5像素 内算双击
             if time_diff < 300 && pos_diff < 5.0 {
                 self.last_click_time = None;
                 return true;
@@ -285,32 +312,68 @@ impl TextInput {
         false
     }
     
-    // 删除选中内容
     fn delete_selection(&mut self) {
         if let Some(sel) = self.selection {
             if !sel.is_empty() {
-                let start = sel.min() as usize;
-                let end = sel.max() as usize;
-                self.text.replace_range(start..end, "");
-                self.cursor_pos = start as u32;
-                self.selection = None;
+                let start_char = sel.min() as usize;
+                let end_char = sel.max() as usize;
+                let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
+                let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
+                
+                let mut new_text = String::with_capacity(self.text.len());
+                new_text.push_str(&self.text[..start_byte]);
+                new_text.push_str(&self.text[end_byte..]);
+                self.set_text(new_text);
+                self.cursor_pos = start_char as u32;
             }
         }
     }
     
-    // 插入字符
     fn insert_char(&mut self, c: char) {
-        // 检查长度限制
-        if let Some(max) = self.max_length {
-            if self.text.len() >= max {
-                return;
-            }
-        }
+        // 达到最大长度，直接拒绝输入
+        // if let Some(max) = self.max_length {
+        //     if self.text.chars().count() >= max {
+        //         return;
+        //     }
+        // }
         
-        self.text.insert(self.cursor_pos as usize, c);
-        self.cursor_pos += 1;
+        let old_cursor_char = self.cursor_pos as usize;
+        let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
+        
+        let mut new_text = String::with_capacity(self.text.len() + 1);
+        new_text.push_str(&self.text[..old_cursor_byte]);
+        new_text.push(c);
+        new_text.push_str(&self.text[old_cursor_byte..]);
+        
+        self.set_text(new_text);
+        self.cursor_pos = (old_cursor_char + 1) as u32;
         self.cursor_visible = true;
         self.cursor_blink_timer = 0.0;
+    }
+    
+    fn calculate_clamped_menu_pos(&self, initial_pos: (f32, f32)) -> (f32, f32) {
+        let menu_width = self.context_menu_container.width();
+        let menu_height = self.context_menu_container.height();
+        let screen_w = screen_width();
+        let screen_h = screen_height();
+        
+        let mut x = initial_pos.0;
+        let mut y = initial_pos.1;
+        
+        if x + menu_width > screen_w {
+            x = screen_w - menu_width;
+        }
+        if x < 0.0 {
+            x = 0.0;
+        }
+        if y + menu_height > screen_h {
+            y = screen_h - menu_height;
+        }
+        if y < 0.0 {
+            y = 0.0;
+        }
+        
+        (x, y)
     }
 }
 
@@ -345,227 +408,411 @@ impl Widget for TextInput {
         
         let size = self.height * 0.4;
         let padding = 4.0;
-        let _available_width = self.width - padding * 2.0;
         
-        // 重置一次性事件
         self.just_clicked = false;
         self.just_submitted = false;
         
-        // 悬浮检测
         self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
         
         let clicked = is_mouse_button_pressed(MouseButton::Left);
         let mouse_down = is_mouse_button_down(MouseButton::Left);
         
-        // 点击/拖拽逻辑
-        if clicked && self.hover {
-            self.just_clicked = true;
-            self.selected = true;
-            self.is_dragging = true;
+        if self.context_menu_open {
+            self.context_menu_container.process(self.context_menu_pos);
             
-            // 检查双击
-            let is_double_click = self.check_double_click(mouse_pos);
-            
-            // 计算点击位置对应的字符位置
-            let display_text = self.display_text();
-            let mut click_x = mx - x - padding;
-            
-            // 计算滚动偏移
-            let text_width = self.text_width(&display_text, size);
-            let available_width = self.width - padding * 2.0;
-            let mut scroll_offset = 0.0;
-            if text_width > available_width {
-                let cursor_x = self.text_width(&display_text[..self.cursor_pos as usize], size);
-                scroll_offset = (cursor_x - available_width / 2.0).max(0.0).min(text_width - available_width);
+            if let Some(cut_btn) = self.context_menu_container.get_child_as::<Button>(0) {
+                if cut_btn.is_clicked() {
+                    if let Some(sel) = self.selection {
+                        if !sel.is_empty() {
+                            let start_char = sel.min() as usize;
+                            let end_char = sel.max() as usize;
+                            let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
+                            let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
+                            let selected_text = &self.text[start_byte..end_byte];
+                            if let Ok(mut clipboard) = Clipboard::new() {
+                                clipboard.set_text(selected_text).ok();
+                            }
+                            let mut new_text = String::new();
+                            new_text.push_str(&self.text[..start_byte]);
+                            new_text.push_str(&self.text[end_byte..]);
+                            self.set_text(new_text);
+                            self.cursor_pos = start_char as u32;
+                        }
+                    }
+                    self.context_menu_open = false;
+                    self.long_press_start = None;
+                    self.is_dragging = false;
+                }
             }
             
-            click_x += scroll_offset;
+            if let Some(copy_btn) = self.context_menu_container.get_child_as::<Button>(1) {
+                if copy_btn.is_clicked() {
+                    if let Some(sel) = self.selection {
+                        if !sel.is_empty() {
+                            let start_char = sel.min() as usize;
+                            let end_char = sel.max() as usize;
+                            let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
+                            let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
+                            let selected_text = &self.text[start_byte..end_byte];
+                            if let Ok(mut clipboard) = Clipboard::new() {
+                                clipboard.set_text(selected_text).ok();
+                            }
+                        }
+                    }
+                    self.context_menu_open = false;
+                    self.long_press_start = None;
+                    self.is_dragging = false;
+                }
+            }
             
-            // 找到最接近的字符位置
-            let mut current_x = 0.0;
+            if let Some(paste_btn) = self.context_menu_container.get_child_as::<Button>(2) {
+                if paste_btn.is_clicked() {
+                    if let Ok(mut clipboard) = Clipboard::new() {
+                        if let Ok(paste_text) = clipboard.get_text() {
+                            self.delete_selection();
+                            let old_cursor_char = self.cursor_pos as usize;
+                            let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
+                            let mut new_text = String::new();
+                            new_text.push_str(&self.text[..old_cursor_byte]);
+                            new_text.push_str(&paste_text);
+                            new_text.push_str(&self.text[old_cursor_byte..]);
+                            self.set_text(new_text);
+                            self.cursor_pos = (old_cursor_char + paste_text.chars().count()) as u32;
+                        }
+                    }
+                    self.context_menu_open = false;
+                    self.long_press_start = None;
+                    self.is_dragging = false;
+                }
+            }
+            
+            if clicked {
+                let menu_rect = Rect::new(
+                    self.context_menu_pos.0,
+                    self.context_menu_pos.1,
+                    self.context_menu_container.width(),
+                    self.context_menu_container.height()
+                );
+                if !menu_rect.contains(mouse_pos.into()) {
+                    self.context_menu_open = false;
+                    self.long_press_start = None;
+                    self.is_dragging = false;
+                }
+            }
+            return;
+        }
+        
+        let right_clicked = is_mouse_button_pressed(MouseButton::Right);
+        if right_clicked && self.hover {
+            self.context_menu_open = true;
+            self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
+            return;
+        }
+        
+        if clicked && self.hover {
+            self.long_press_start = Some(Instant::now());
+            self.long_press_initial_pos = mouse_pos;
+            self.selected = true;
+            self.just_clicked = true;
+        }
+        
+        let threshold = screen_width().min(screen_height()) * 0.01;
+        let mut cancel_long_press = false;
+        
+        if mouse_down && self.long_press_start.is_some() {
+            let (ix, iy) = self.long_press_initial_pos;
+            let dist = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
+            if dist > threshold {
+                cancel_long_press = true;
+            }
+        }
+        
+        if cancel_long_press {
+            self.long_press_start = None;
+            self.is_dragging = true;
+            
+            let display_text = self.display_text();
+            let avail = self.width - padding * 2.0;
+            let total_w = self.text_width(&display_text);
+            
+            let mut scroll = 0.0;
+            if total_w > avail {
+                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
+            }
+            
+            let target = mx - x - padding + scroll;
+            let mut accum = 0.0;
             let mut new_pos = 0;
             for (i, c) in display_text.chars().enumerate() {
-                let char_w = self.char_width(c, size);
-                if click_x < current_x + char_w / 2.0 {
+                let w = self.measure_prefix_width(std::iter::once(c));
+                if target < accum + w * 0.5 {
                     break;
                 }
-                current_x += char_w;
+                accum += w;
+                new_pos = i + 1;
+            }
+            
+            self.cursor_pos = new_pos as u32;
+            self.selection = Some(Selection::new(self.cursor_pos));
+        }
+        
+        let mut long_trigger = false;
+        if mouse_down && self.long_press_start.is_some() {
+            let t = self.long_press_start.unwrap().elapsed().as_millis();
+            let (ix, iy) = self.long_press_initial_pos;
+            let d = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
+            if t > 450 && d < threshold {
+                self.context_menu_open = true;
+                self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
+                self.long_press_start = None;
+                long_trigger = true;
+                return;
+            }
+        }
+        
+        if !mouse_down && self.long_press_start.is_some() && !long_trigger {
+            self.is_dragging = true;
+            let double = self.check_double_click(mouse_pos);
+            
+            let display_text = self.display_text();
+            let avail = self.width - padding * 2.0;
+            let total_w = self.text_width(&display_text);
+            let mut scroll = 0.0;
+            if total_w > avail {
+                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
+            }
+            
+            let target = mx - x - padding + scroll;
+            let mut accum = 0.0;
+            let mut new_pos = 0;
+            for (i, c) in display_text.chars().enumerate() {
+                let w = self.measure_prefix_width(std::iter::once(c));
+                if target < accum + w * 0.5 {
+                    break;
+                }
+                accum += w;
                 new_pos = i + 1;
             }
             
             self.cursor_pos = new_pos as u32;
             
-            // 双击选中单词
-            if is_double_click {
-                let start = self.find_word_boundary(self.cursor_pos, false);
-                let end = self.find_word_boundary(self.cursor_pos, true);
-                self.selection = Some(Selection { start, end });
+            if double {
+                let s = self.find_word_boundary(self.cursor_pos, false);
+                let e = self.find_word_boundary(self.cursor_pos, true);
+                self.selection = Some(Selection { start: s, end: e });
             } else {
                 self.selection = Some(Selection::new(self.cursor_pos));
             }
             
             self.cursor_visible = true;
             self.cursor_blink_timer = 0.0;
-        } else if clicked && !self.hover {
-            self.selected = false;
-            self.is_dragging = false;
-            self.selection = None;
+            self.long_press_start = None;
         }
         
-        // 拖拽选择
         if self.is_dragging && mouse_down {
             let display_text = self.display_text();
-            let mut drag_x = mx - x - padding;
-            
-            let text_width = self.text_width(&display_text, size);
-            let available_width = self.width - padding * 2.0;
-            let mut scroll_offset = 0.0;
-            if text_width > available_width {
-                let cursor_x = self.text_width(&display_text[..self.cursor_pos as usize], size);
-                scroll_offset = (cursor_x - available_width / 2.0).max(0.0).min(text_width - available_width);
+            let avail = self.width - padding * 2.0;
+            let total_w = self.text_width(&display_text);
+            let mut scroll = 0.0;
+            if total_w > avail {
+                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
             }
             
-            drag_x += scroll_offset;
-            
-            let mut current_x = 0.0;
-            let mut new_pos = 0;
+            let target = mx - x - padding + scroll;
+            let mut accum = 0.0;
+            let mut pos = 0;
             for (i, c) in display_text.chars().enumerate() {
-                let char_w = self.char_width(c, size);
-                if drag_x < current_x + char_w / 2.0 {
+                let w = self.measure_prefix_width(std::iter::once(c));
+                if target < accum + w * 0.5 {
                     break;
                 }
-                current_x += char_w;
-                new_pos = i + 1;
+                accum += w;
+                pos = i + 1;
             }
             
             if let Some(ref mut sel) = self.selection {
-                sel.end = new_pos as u32;
+                sel.end = pos as u32;
             }
-            self.cursor_pos = new_pos as u32;
+            self.cursor_pos = pos as u32;
         } else if !mouse_down {
             self.is_dragging = false;
         }
         
-        // ESC 取消选中
+        if clicked && !self.hover {
+            self.selected = false;
+            self.is_dragging = false;
+            self.selection = None;
+            self.long_press_start = None;
+        }
+        
         if self.selected && is_key_pressed(KeyCode::Escape) {
             self.selected = false;
             self.selection = None;
         }
         
-        // 键盘输入处理
         if self.selected {
-            // 光标闪烁
             self.cursor_blink_timer += get_frame_time();
             if self.cursor_blink_timer > 0.5 {
                 self.cursor_blink_timer = 0.0;
                 self.cursor_visible = !self.cursor_visible;
             }
             
-            // 修饰键
             let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
             let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
             
-            // --- 左移 ---
+            if ctrl {
+                if is_key_pressed(KeyCode::A) {
+                    self.selection = Some(Selection { start:0, end: self.text.chars().count() as u32 });
+                    self.cursor_pos = self.text.chars().count() as u32;
+                    self.cursor_visible = true;
+                    self.cursor_blink_timer = 0.0;
+                }
+                if is_key_pressed(KeyCode::X) {
+                    if let Some(sel) = self.selection {
+                        if !sel.is_empty() {
+                            let s = sel.min() as usize;
+                            let e = sel.max() as usize;
+                            let sb = self.char_idx_to_byte_idx(&self.text, s);
+                            let eb = self.char_idx_to_byte_idx(&self.text, e);
+                            let t = &self.text[sb..eb];
+                            if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                            let mut nt = String::new();
+                            nt.push_str(&self.text[..sb]);
+                            nt.push_str(&self.text[eb..]);
+                            self.set_text(nt);
+                            self.cursor_pos = s as u32;
+                        }
+                    }
+                }
+                if is_key_pressed(KeyCode::C) {
+                    if let Some(sel) = self.selection {
+                        if !sel.is_empty() {
+                            let s = sel.min() as usize;
+                            let e = sel.max() as usize;
+                            let sb = self.char_idx_to_byte_idx(&self.text, s);
+                            let eb = self.char_idx_to_byte_idx(&self.text, e);
+                            let t = &self.text[sb..eb];
+                            if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                        }
+                    }
+                }
+                if is_key_pressed(KeyCode::V) {
+                    if let Ok(mut cb) = Clipboard::new() {
+                        if let Ok(pt) = cb.get_text() {
+                            self.delete_selection();
+                            let oc = self.cursor_pos as usize;
+                            let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                            let mut nt = String::new();
+                            nt.push_str(&self.text[..ob]);
+                            nt.push_str(&pt);
+                            nt.push_str(&self.text[ob..]);
+                            self.set_text(nt);
+                            self.cursor_pos = (oc + pt.chars().count()) as u32;
+                        }
+                    }
+                }
+            }
+            
             if self.key_left.update(is_key_down(KeyCode::Left)) {
                 if ctrl {
                     self.cursor_pos = self.find_word_boundary(self.cursor_pos, false);
                 } else {
                     self.cursor_pos = self.cursor_pos.saturating_sub(1);
                 }
-                
-                if !shift {
-                    self.selection = None;
-                } else if let Some(ref mut sel) = self.selection {
-                    sel.end = self.cursor_pos;
-                } else {
-                    self.selection = Some(Selection { start: self.cursor_pos + 1, end: self.cursor_pos });
-                }
-                
+                if !shift { self.selection = None; }
+                else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; }
+                else { self.selection = Some(Selection { start:self.cursor_pos+1, end:self.cursor_pos }); }
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
             }
-            
-            // --- 右移 ---
             if self.key_right.update(is_key_down(KeyCode::Right)) {
+                let cnt = self.text.chars().count() as u32;
                 if ctrl {
                     self.cursor_pos = self.find_word_boundary(self.cursor_pos, true);
                 } else {
-                    self.cursor_pos = (self.cursor_pos + 1).min(self.text.len() as u32);
+                    self.cursor_pos = (self.cursor_pos +1).min(cnt);
                 }
-                
-                if !shift {
-                    self.selection = None;
-                } else if let Some(ref mut sel) = self.selection {
-                    sel.end = self.cursor_pos;
-                } else {
-                    self.selection = Some(Selection { start: self.cursor_pos - 1, end: self.cursor_pos });
-                }
-                
+                if !shift { self.selection = None; }
+                else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; }
+                else { self.selection = Some(Selection { start:self.cursor_pos-1, end:self.cursor_pos }); }
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
             }
             
-            // --- Home ---
             if is_key_pressed(KeyCode::Home) {
                 self.cursor_pos = 0;
-                if !shift {
-                    self.selection = None;
-                } else if let Some(ref mut sel) = self.selection {
-                    sel.end = 0;
-                }
+                if !shift { self.selection = None; }
+                else if let Some(ref mut s) = self.selection { s.end = 0; }
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
             }
-            
-            // --- End ---
             if is_key_pressed(KeyCode::End) {
-                self.cursor_pos = self.text.len() as u32;
-                if !shift {
-                    self.selection = None;
-                } else if let Some(ref mut sel) = self.selection {
-                    sel.end = self.text.len() as u32;
-                }
+                let cnt = self.text.chars().count() as u32;
+                self.cursor_pos = cnt;
+                if !shift { self.selection = None; }
+                else if let Some(ref mut s) = self.selection { s.end = cnt; }
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
             }
             
-            // --- 退格 ---
             if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
                 self.delete_selection();
-                
-                if self.cursor_pos > 0 {
-                    self.text.remove(self.cursor_pos as usize - 1);
-                    self.cursor_pos -= 1;
+                let oc = self.cursor_pos as usize;
+                if oc > 0 {
+                    let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                    let nb = self.char_idx_to_byte_idx(&self.text, oc-1);
+                    let mut nt = String::new();
+                    nt.push_str(&self.text[..nb]);
+                    nt.push_str(&self.text[ob..]);
+                    self.set_text(nt);
+                    self.cursor_pos = (oc-1) as u32;
                 }
-                
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
             }
-            
-            // --- 删除 ---
             if self.key_delete.update(is_key_down(KeyCode::Delete)) {
                 self.delete_selection();
-                
-                if self.cursor_pos < self.text.len() as u32 {
-                    self.text.remove(self.cursor_pos as usize);
+                let oc = self.cursor_pos as usize;
+                let cnt = self.text.chars().count();
+                if oc < cnt {
+                    let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                    let eb = self.char_idx_to_byte_idx(&self.text, oc+1);
+                    let mut nt = String::new();
+                    nt.push_str(&self.text[..ob]);
+                    nt.push_str(&self.text[eb..]);
+                    self.set_text(nt);
+                    self.cursor_pos = oc as u32;
                 }
-                
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
             }
             
-            // --- 回车 ---
             if is_key_pressed(KeyCode::Enter) {
                 self.just_submitted = true;
             }
             
-            // --- 普通字符输入 ---
             while let Some(key) = get_char_pressed() {
-                // 过滤控制字符（只保留可打印字符）
                 if !key.is_control() {
                     self.delete_selection();
                     self.insert_char(key);
                 }
+            }
+        }
+        
+        if let Some(max) = self.max_length {
+            let char_count = self.text.chars().count();
+            if char_count > max {
+                let truncated: String = self.text.chars().take(max).collect();
+                self.text = truncated;
+                
+                let new_count = self.text.chars().count() as u32;
+                if self.cursor_pos > new_count {
+                    self.cursor_pos = new_count;
+                }
+                self.selection = None;
             }
         }
     }
@@ -580,45 +827,45 @@ impl Widget for TextInput {
         let size = self.height * 0.4;
         let padding = 4.0;
         let available_width = self.width - padding * 2.0;
-        
         let display_text = self.display_text();
-        let text_width = self.text_width(&display_text, size);
         
-        // 计算滚动偏移
+        let total_width = self.text_width(&display_text);
+        
+        // 滚动偏移（安全）
         let mut scroll_offset = 0.0;
-        if text_width > available_width {
-            let cursor_x = self.text_width(&display_text[..self.cursor_pos as usize], size);
-            scroll_offset = (cursor_x - available_width / 2.0).max(0.0).min(text_width - available_width);
+        if total_width > available_width {
+            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+            scroll_offset = (cursor_w - available_width * 0.5)
+                .max(0.0)
+                .min(total_width - available_width);
         }
         
-        // 绘制选中背景
+        // 选中区域
         if self.selected {
             if let Some(sel) = self.selection {
                 if !sel.is_empty() {
-                    let start = sel.min() as usize;
-                    let end = sel.max() as usize;
+                    let s = sel.min() as usize;
+                    let e = sel.max() as usize;
+                    let start_x = self.measure_prefix_width(display_text.chars().take(s));
+                    let sel_w = self.measure_prefix_width(display_text.chars().skip(s).take(e - s));
                     
-                    let sel_start_x = self.text_width(&display_text[..start], size);
-                    let sel_width = self.text_width(&display_text[start..end], size);
-                    
-                    let sel_x = x + padding + sel_start_x - scroll_offset;
-                    let sel_y = y + 8.0;
-                    let sel_h = self.height - 16.0;
-                    
-                    draw_rectangle((sel_x, sel_y), (sel_width, sel_h), Color::new(0.3, 0.5, 1.0, 0.5));
+                    let sx = x + padding + start_x - scroll_offset;
+                    draw_rectangle((sx, y + 8.0), (sel_w, self.height - 16.0), Color::new(0.3, 0.5, 1.0, 0.5));
                 }
             }
         }
         
-        // 绘制文字或 Placeholder
+        // 占位符
         if self.text.is_empty() && self.placeholder.is_some() {
-            let placeholder = self.placeholder.as_ref().unwrap();
-            let placeholder_size = measure_text(placeholder, self.font.clone(), size, 1.0);
+            let ph = self.placeholder.as_ref().unwrap();
+            let dim = self.measure_ex(ph);
+            let cx = x + self.width * 0.5 - dim.width * 0.5;
+            let cy = y + self.height * 0.5 + dim.height * 0.25;
             
             draw_text_ex(
-                placeholder,
-                (x + self.width / 2.0 - placeholder_size.width / 2.0, y + self.height / 2.0 + placeholder_size.height / 4.0),
-                (-1.,-1.),
+                ph,
+                (cx, cy),
+                (-1.0, -1.0),
                 TextParams {
                     font: self.font.clone(),
                     font_size: size,
@@ -628,31 +875,30 @@ impl Widget for TextInput {
                 }
             );
         } else {
-            // 裁剪文字
+            // ✅ 修复：可见文本安全裁剪，不会错乱
             let mut visible_text = String::new();
-            let mut visible_width = 0.0;
-            
+            let mut accumulated_width = 0.0;
             for c in display_text.chars() {
-                let char_w = self.char_width(c, size);
-                if visible_width + char_w > available_width + scroll_offset {
+                let char_w = self.measure_prefix_width(std::iter::once(c));
+                // 超出可见区域就停止绘制
+                if accumulated_width + char_w > available_width + scroll_offset {
                     break;
                 }
-                if visible_width >= scroll_offset {
+                // 只绘制滚动后可见的字符
+                if accumulated_width >= scroll_offset {
                     visible_text.push(c);
                 }
-                visible_width += char_w;
+                accumulated_width += char_w;
             }
             
-            let visible_text_size = measure_text(&visible_text, self.font.clone(), size, 1.0);
-            
-            // 计算文字起始位置
-            let text_x = x + padding - scroll_offset;
-            let text_y = y + self.height / 2.0 + visible_text_size.height / 4.0;
+            let dim = self.measure_ex(&visible_text);
+            let text_x = x + padding;
+            let text_y = y + self.height * 0.5 + dim.height * 0.25;
             
             draw_text_ex(
                 &visible_text,
                 (text_x, text_y),
-                (-1.,-1.),
+                (-1.0, -1.0),
                 TextParams {
                     font: self.font.clone(),
                     font_size: size,
@@ -663,19 +909,18 @@ impl Widget for TextInput {
             );
         }
         
-        // 绘制光标
+        // 光标
         if self.selected && self.cursor_visible {
-            let cursor_text = &display_text[..self.cursor_pos as usize];
-            let cursor_text_width = self.text_width(cursor_text, size);
-            
-            let cursor_x = x + padding + cursor_text_width - scroll_offset;
-            let cursor_y = y + 8.0;
-            let cursor_h = self.height - 16.0;
-            
-            draw_line((cursor_x, cursor_y), (cursor_x, cursor_y + cursor_h), 3.0, fg);
+            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+            let cx = x + padding + cursor_w - scroll_offset;
+            draw_line((cx, y + 8.0), (cx, y + self.height - 8.0), 2.0, fg);
         }
         
-        draw_rectangle_lines((x, y), (self.width, self.height), 4.0, fg);
+        draw_rectangle_lines((x, y), (self.width, self.height), 2.0, fg);
+        
+        if self.context_menu_open {
+            self.context_menu_container.draw(self.context_menu_pos);
+        }
     }
 }
 
