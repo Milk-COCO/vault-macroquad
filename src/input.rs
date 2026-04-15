@@ -223,6 +223,11 @@ pub fn get_dropped_files() -> Vec<DroppedFile> {
     get_context().dropped_files()
 }
 
+/// 获取此帧是否有ime commit
+pub fn get_ime_commit() -> Option<String> {
+    get_context().ime_commit_string.clone()
+}
+
 /// Functions for advanced input processing.
 ///
 /// Functions in this module should be used by external tools that uses miniquad system, like different UI libraries. User shouldn't use this function.

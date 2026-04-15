@@ -1,4 +1,5 @@
 //! This module defines the [`TextInput`] widget that allows the user to enter text.
+use miniquad::window;
 use super::{Action, Align, Button, Container, Direction, Widget};
 use crate::prelude::*;
 use arboard::Clipboard;
@@ -6,6 +7,7 @@ use parking_lot::RwLock;
 use std::any::Any;
 use std::sync::Arc;
 use std::time::Instant;
+use crate::get_context;
 
 /// 文本选择范围
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,9 +116,6 @@ pub struct TextInput {
     is_password: bool,
     max_length: Option<usize>,
     
-    screen_pos: (f32, f32),
-    screen_cursor_pos: (f32, f32),
-    
     is_dragging: bool,
     just_submitted: bool,
     
@@ -175,9 +174,6 @@ impl TextInput {
             is_password: false,
             max_length,
             
-            screen_pos: (0.0, 0.0),
-            screen_cursor_pos: (0.0, 0.0),
-            
             is_dragging: false,
             just_submitted: false,
             
@@ -209,7 +205,6 @@ impl TextInput {
     
     pub fn with_max_length(mut self, max: usize) -> Self {
         self.max_length = Some(max.max(1));
-        // 设置后立刻截断现有文本
         if let Some(max) = self.max_length {
             let chars: Vec<char> = self.text.chars().take(max).collect();
             self.text = chars.into_iter().collect();
@@ -236,10 +231,6 @@ impl TextInput {
     
     pub fn is_submitted(&self) -> bool {
         self.just_submitted
-    }
-    
-    pub fn ime_cursor_screen_pos(&self) -> (f32, f32) {
-        self.screen_cursor_pos
     }
     
     fn char_idx_to_byte_idx(&self, s: &str, char_idx: usize) -> usize {
@@ -274,7 +265,6 @@ impl TextInput {
         pos
     }
     
-    // ✅ 唯一正确测量：完全使用 measure_text_ex
     fn measure_ex(&self, text: &str) -> TextDimensionsEx {
         measure_text_ex(
             text,
@@ -286,7 +276,6 @@ impl TextInput {
         )
     }
     
-    // 测量前 N 个字符宽度
     fn measure_prefix_width(&self, chars: impl Iterator<Item = char>) -> f32 {
         let s: String = chars.collect();
         self.measure_ex(&s).width
@@ -333,24 +322,20 @@ impl TextInput {
         }
     }
     
-    fn insert_char(&mut self, c: char) {
-        // 达到最大长度，直接拒绝输入
-        // if let Some(max) = self.max_length {
-        //     if self.text.chars().count() >= max {
-        //         return;
-        //     }
-        // }
-        
+    fn insert(&mut self, text: &str) {
+        self.delete_selection();
+        let len = text.len();
+        if len == 0 { return; }
         let old_cursor_char = self.cursor_pos as usize;
         let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
         
-        let mut new_text = String::with_capacity(self.text.len() + 1);
+        let mut new_text = String::with_capacity(self.text.len() + len);
         new_text.push_str(&self.text[..old_cursor_byte]);
-        new_text.push(c);
+        new_text.push_str(text);
         new_text.push_str(&self.text[old_cursor_byte..]);
         
         self.set_text(new_text);
-        self.cursor_pos = (old_cursor_char + 1) as u32;
+        self.cursor_pos = (old_cursor_char + text.chars().count()) as u32;
         self.cursor_visible = true;
         self.cursor_blink_timer = 0.0;
     }
@@ -410,13 +395,10 @@ impl Widget for TextInput {
     
     fn process(&mut self, pos: impl Into<(f32,f32)>) {
         let (x, y) = pos.into();
-        self.screen_pos = (x, y);
-        
         let mouse_pos = mouse_position();
         let mx = mouse_pos.0;
         let my = mouse_pos.1;
         
-        // let size = self.height * 0.4;
         let padding = 4.0;
         
         self.just_clicked = false;
@@ -656,160 +638,184 @@ impl Widget for TextInput {
             self.is_dragging = false;
             self.selection = None;
             self.long_press_start = None;
+            window::set_ime_enabled(false);
         }
         
         if self.selected && is_key_pressed(KeyCode::Escape) {
             self.selected = false;
             self.selection = None;
+            window::set_ime_enabled(false);
         }
         
         if self.selected {
+            window::set_ime_enabled(true);
+            
             self.cursor_blink_timer += get_frame_time();
             if self.cursor_blink_timer > 0.5 {
                 self.cursor_blink_timer = 0.0;
                 self.cursor_visible = !self.cursor_visible;
             }
             
-            let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
-            let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
+            let display_text = self.display_text();
+            let available_width = self.width - 8.0;
+            let total_width = self.text_width(&display_text);
+            let mut scroll_offset = 0.0;
+            if total_width > available_width {
+                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                scroll_offset = (cursor_w - available_width * 0.5).max(0.0).min(total_width - available_width);
+            }
             
-            if ctrl {
-                if is_key_pressed(KeyCode::A) {
-                    self.selection = Some(Selection { start:0, end: self.text.chars().count() as u32 });
-                    self.cursor_pos = self.text.chars().count() as u32;
-                    self.cursor_visible = true;
-                    self.cursor_blink_timer = 0.0;
-                }
-                if is_key_pressed(KeyCode::X) {
-                    if let Some(sel) = self.selection {
-                        if !sel.is_empty() {
-                            let s = sel.min() as usize;
-                            let e = sel.max() as usize;
-                            let sb = self.char_idx_to_byte_idx(&self.text, s);
-                            let eb = self.char_idx_to_byte_idx(&self.text, e);
-                            let t = &self.text[sb..eb];
-                            if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
-                            let mut nt = String::new();
-                            nt.push_str(&self.text[..sb]);
-                            nt.push_str(&self.text[eb..]);
-                            self.set_text(nt);
-                            self.cursor_pos = s as u32;
+            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+            let (win_x, win_y) = window::get_window_position();
+            let cx = win_x as f32 + x + 4.0 + cursor_w - scroll_offset;
+            let cy = win_y as f32 + y + self.height * 0.5 - 8.0;
+            window::set_ime_position(cx as i32, cy as i32);
+            
+            let mut input = String::new();
+            if let Some(ref t) = get_context().ime_commit_string {
+                // info!("{}",t);
+                if !t.is_empty() {input.push_str(t);}
+            } else
+            {
+                let preedit = &get_context().ime_preedit_string;
+                if preedit.is_empty() {
+                    let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+                    let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
+                    
+                    if ctrl && is_key_pressed(KeyCode::A) {
+                        self.selection = Some(Selection { start: 0, end: self.text.chars().count() as u32 });
+                        self.cursor_pos = self.text.chars().count() as u32;
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    if ctrl && is_key_pressed(KeyCode::X) {
+                        if let Some(sel) = self.selection {
+                            if !sel.is_empty() {
+                                let s = sel.min() as usize;
+                                let e = sel.max() as usize;
+                                let sb = self.char_idx_to_byte_idx(&self.text, s);
+                                let eb = self.char_idx_to_byte_idx(&self.text, e);
+                                let t = &self.text[sb..eb];
+                                if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                                let mut nt = String::new();
+                                nt.push_str(&self.text[..sb]);
+                                nt.push_str(&self.text[eb..]);
+                                self.set_text(nt);
+                                self.cursor_pos = s as u32;
+                            }
                         }
                     }
-                }
-                if is_key_pressed(KeyCode::C) {
-                    if let Some(sel) = self.selection {
-                        if !sel.is_empty() {
-                            let s = sel.min() as usize;
-                            let e = sel.max() as usize;
-                            let sb = self.char_idx_to_byte_idx(&self.text, s);
-                            let eb = self.char_idx_to_byte_idx(&self.text, e);
-                            let t = &self.text[sb..eb];
-                            if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                    if ctrl && is_key_pressed(KeyCode::C) {
+                        if let Some(sel) = self.selection {
+                            if !sel.is_empty() {
+                                let s = sel.min() as usize;
+                                let e = sel.max() as usize;
+                                let sb = self.char_idx_to_byte_idx(&self.text, s);
+                                let eb = self.char_idx_to_byte_idx(&self.text, e);
+                                let t = &self.text[sb..eb];
+                                if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                            }
                         }
                     }
-                }
-                if is_key_pressed(KeyCode::V) {
-                    if let Ok(mut cb) = Clipboard::new() {
-                        if let Ok(pt) = cb.get_text() {
-                            self.delete_selection();
-                            let oc = self.cursor_pos as usize;
+                    if ctrl && is_key_pressed(KeyCode::V) {
+                        if let Ok(mut cb) = Clipboard::new() {
+                            if let Ok(pt) = cb.get_text() {
+                                self.delete_selection();
+                                let oc = self.cursor_pos as usize;
+                                let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                                let mut nt = String::new();
+                                nt.push_str(&self.text[..ob]);
+                                nt.push_str(&pt);
+                                nt.push_str(&self.text[ob..]);
+                                self.set_text(nt);
+                                self.cursor_pos = (oc + pt.chars().count()) as u32;
+                            }
+                        }
+                    }
+                    
+                    if self.key_left.update(is_key_down(KeyCode::Left)) {
+                        if ctrl {
+                            self.cursor_pos = self.find_word_boundary(self.cursor_pos, false);
+                        } else {
+                            self.cursor_pos = self.cursor_pos.saturating_sub(1);
+                        }
+                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos + 1, end: self.cursor_pos }); }
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    if self.key_right.update(is_key_down(KeyCode::Right)) {
+                        let cnt = self.text.chars().count() as u32;
+                        if ctrl {
+                            self.cursor_pos = self.find_word_boundary(self.cursor_pos, true);
+                        } else {
+                            self.cursor_pos = (self.cursor_pos + 1).min(cnt);
+                        }
+                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos - 1, end: self.cursor_pos }); }
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    
+                    if is_key_pressed(KeyCode::Home) {
+                        self.cursor_pos = 0;
+                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = 0; }
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    if is_key_pressed(KeyCode::End) {
+                        let cnt = self.text.chars().count() as u32;
+                        self.cursor_pos = cnt;
+                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = cnt; }
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    
+                    if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
+                        self.delete_selection();
+                        let oc = self.cursor_pos as usize;
+                        if oc > 0 {
                             let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                            let nb = self.char_idx_to_byte_idx(&self.text, oc - 1);
                             let mut nt = String::new();
-                            nt.push_str(&self.text[..ob]);
-                            nt.push_str(&pt);
+                            nt.push_str(&self.text[..nb]);
                             nt.push_str(&self.text[ob..]);
                             self.set_text(nt);
-                            self.cursor_pos = (oc + pt.chars().count()) as u32;
+                            self.cursor_pos = (oc - 1) as u32;
+                        }
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    if self.key_delete.update(is_key_down(KeyCode::Delete)) {
+                        self.delete_selection();
+                        let oc = self.cursor_pos as usize;
+                        let cnt = self.text.chars().count();
+                        if oc < cnt {
+                            let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                            let eb = self.char_idx_to_byte_idx(&self.text, oc + 1);
+                            let mut nt = String::new();
+                            nt.push_str(&self.text[..ob]);
+                            nt.push_str(&self.text[eb..]);
+                            self.set_text(nt);
+                            self.cursor_pos = oc as u32;
+                        }
+                        self.cursor_visible = true;
+                        self.cursor_blink_timer = 0.0;
+                    }
+                    
+                    if is_key_pressed(KeyCode::Enter) {
+                        self.just_submitted = true;
+                    }
+                    
+                    while let Some(key) = get_char_pressed() {
+                        if !key.is_control() {
+                            input.push(key);
+                            // info!("{}",key);
                         }
                     }
-                }
-            }
-            
-            if self.key_left.update(is_key_down(KeyCode::Left)) {
-                if ctrl {
-                    self.cursor_pos = self.find_word_boundary(self.cursor_pos, false);
                 } else {
-                    self.cursor_pos = self.cursor_pos.saturating_sub(1);
-                }
-                if !shift { self.selection = None; }
-                else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; }
-                else { self.selection = Some(Selection { start:self.cursor_pos+1, end:self.cursor_pos }); }
-                self.cursor_visible = true;
-                self.cursor_blink_timer = 0.0;
-            }
-            if self.key_right.update(is_key_down(KeyCode::Right)) {
-                let cnt = self.text.chars().count() as u32;
-                if ctrl {
-                    self.cursor_pos = self.find_word_boundary(self.cursor_pos, true);
-                } else {
-                    self.cursor_pos = (self.cursor_pos +1).min(cnt);
-                }
-                if !shift { self.selection = None; }
-                else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; }
-                else { self.selection = Some(Selection { start:self.cursor_pos-1, end:self.cursor_pos }); }
-                self.cursor_visible = true;
-                self.cursor_blink_timer = 0.0;
-            }
-            
-            if is_key_pressed(KeyCode::Home) {
-                self.cursor_pos = 0;
-                if !shift { self.selection = None; }
-                else if let Some(ref mut s) = self.selection { s.end = 0; }
-                self.cursor_visible = true;
-                self.cursor_blink_timer = 0.0;
-            }
-            if is_key_pressed(KeyCode::End) {
-                let cnt = self.text.chars().count() as u32;
-                self.cursor_pos = cnt;
-                if !shift { self.selection = None; }
-                else if let Some(ref mut s) = self.selection { s.end = cnt; }
-                self.cursor_visible = true;
-                self.cursor_blink_timer = 0.0;
-            }
-            
-            if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
-                self.delete_selection();
-                let oc = self.cursor_pos as usize;
-                if oc > 0 {
-                    let ob = self.char_idx_to_byte_idx(&self.text, oc);
-                    let nb = self.char_idx_to_byte_idx(&self.text, oc-1);
-                    let mut nt = String::new();
-                    nt.push_str(&self.text[..nb]);
-                    nt.push_str(&self.text[ob..]);
-                    self.set_text(nt);
-                    self.cursor_pos = (oc-1) as u32;
-                }
-                self.cursor_visible = true;
-                self.cursor_blink_timer = 0.0;
-            }
-            if self.key_delete.update(is_key_down(KeyCode::Delete)) {
-                self.delete_selection();
-                let oc = self.cursor_pos as usize;
-                let cnt = self.text.chars().count();
-                if oc < cnt {
-                    let ob = self.char_idx_to_byte_idx(&self.text, oc);
-                    let eb = self.char_idx_to_byte_idx(&self.text, oc+1);
-                    let mut nt = String::new();
-                    nt.push_str(&self.text[..ob]);
-                    nt.push_str(&self.text[eb..]);
-                    self.set_text(nt);
-                    self.cursor_pos = oc as u32;
-                }
-                self.cursor_visible = true;
-                self.cursor_blink_timer = 0.0;
-            }
-            
-            if is_key_pressed(KeyCode::Enter) {
-                self.just_submitted = true;
-            }
-            
-            while let Some(key) = get_char_pressed() {
-                if !key.is_control() {
-                    self.delete_selection();
-                    self.insert_char(key);
+                    // info!("{}", preedit);
                 }
             }
+            if !input.is_empty() { self.insert(&input); }
         }
         
         if let Some(max) = self.max_length {
@@ -841,7 +847,6 @@ impl Widget for TextInput {
         
         let total_width = self.text_width(&display_text);
         
-        // 滚动偏移（安全）
         let mut scroll_offset = 0.0;
         if total_width > available_width {
             let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
@@ -850,7 +855,6 @@ impl Widget for TextInput {
                 .min(total_width - available_width);
         }
         
-        // 选中区域
         if self.selected {
             if let Some(sel) = self.selection {
                 if !sel.is_empty() {
@@ -865,7 +869,6 @@ impl Widget for TextInput {
             }
         }
         
-        // 占位符
         if self.text.is_empty() && self.placeholder.is_some() {
             let ph = self.placeholder.as_ref().unwrap();
             let dim = self.measure_ex(ph);
@@ -875,7 +878,7 @@ impl Widget for TextInput {
             draw_text_ex(
                 ph,
                 (cx, cy),
-                (-1.0, -1.0),
+                TEXT_LB,
                 TextParams {
                     font: self.font.clone(),
                     font_size: size,
@@ -886,16 +889,14 @@ impl Widget for TextInput {
             );
         } else {
             let text_color = if self.hover || self.selected { self.text_color } else { self.hovered_text_color };
-
+            
             let mut visible_text = String::new();
             let mut accumulated_width = 0.0;
             for c in display_text.chars() {
                 let char_w = self.measure_prefix_width(std::iter::once(c));
-                // 超出可见区域就停止绘制
                 if accumulated_width + char_w > available_width + scroll_offset {
                     break;
                 }
-                // 只绘制滚动后可见的字符
                 if accumulated_width >= scroll_offset {
                     visible_text.push(c);
                 }
@@ -909,7 +910,7 @@ impl Widget for TextInput {
             draw_text_ex(
                 &visible_text,
                 (text_x, text_y),
-                (-1.0, -1.0),
+                TEXT_LB,
                 TextParams {
                     font: self.font.clone(),
                     font_size: size,
@@ -918,9 +919,33 @@ impl Widget for TextInput {
                     ..Default::default()
                 }
             );
+            let preedit = &get_context().ime_preedit_string;
+            if self.selected && !preedit.is_empty() {
+                let base_x = text_x + self.measure_prefix_width(
+                    display_text.chars().take(self.cursor_pos as usize)
+                ) - scroll_offset;
+                
+                draw_text_ex(
+                    preedit,
+                    (base_x, text_y),
+                    TEXT_LB,
+                    TextParams {
+                        font: self.font.clone(),
+                        font_size: size,
+                        color: text_color,
+                        ..Default::default()
+                    },
+                );
+                let w = self.text_width(preedit);
+                draw_line(
+                    (base_x, text_y + 3.0),
+                    (base_x + w, text_y + 3.0),
+                    1.0,
+                    Color::new(0.7, 0.7, 0.7, 1.0),
+                );
+            }
         }
         
-        // 光标
         if self.selected && self.cursor_visible {
             let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
             let cx = x + padding + cursor_w - scroll_offset;
@@ -928,10 +953,6 @@ impl Widget for TextInput {
         }
         
         draw_rectangle_lines((x, y), (self.width, self.height), 2.0, fg);
-        
-        // if self.context_menu_open {
-        //     self.context_menu_container.draw(self.context_menu_pos);
-        // }
     }
 }
 

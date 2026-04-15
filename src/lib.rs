@@ -194,6 +194,8 @@ struct Context {
     touches: HashMap<u64, input::Touch>,
     chars_pressed_queue: Vec<char>,
     chars_pressed_ui_queue: Vec<char>,
+    ime_preedit_string: String,
+    ime_commit_string: Option<String>,
     mouse_position: Vec2,
     last_mouse_position: Option<Vec2>,
     mouse_wheel: Vec2,
@@ -260,6 +262,12 @@ enum MiniquadInputEvent {
         modifiers: KeyMods,
         repeat: bool,
     },
+    ImePreedit {
+        text: String,
+    },
+    ImeCommit {
+        text: Option<String>,
+    },
     KeyDown {
         keycode: KeyCode,
         modifiers: KeyMods,
@@ -292,6 +300,8 @@ impl MiniquadInputEvent {
                 modifiers,
                 repeat,
             } => t.char_event(*character, *modifiers, *repeat),
+            ImePreedit { text } => t.on_ime_preedit(text),
+            ImeCommit { text } => t.on_ime_commit(text.as_ref().map(|x| x.as_str())),
             KeyDown {
                 keycode,
                 modifiers,
@@ -335,6 +345,8 @@ impl Context {
             mouse_pressed: HashSet::new(),
             mouse_released: HashSet::new(),
             touches: HashMap::new(),
+            ime_preedit_string: String::new(),
+            ime_commit_string: None,
             mouse_position: vec2(0., 0.),
             last_mouse_position: None,
             mouse_wheel: vec2(0., 0.),
@@ -459,6 +471,7 @@ impl Context {
         }
 
         self.dropped_files.clear();
+        self.ime_commit_string = None;
         self.chars_pressed_queue.clear();
     }
 
@@ -667,6 +680,8 @@ impl EventHandler for Stage {
     fn char_event(&mut self, character: char, modifiers: KeyMods, repeat: bool) {
         let context = get_context();
 
+        if !context.ime_preedit_string.is_empty() {return;}
+        
         context.chars_pressed_queue.push(character);
         context.chars_pressed_ui_queue.push(character);
 
@@ -681,6 +696,7 @@ impl EventHandler for Stage {
 
     fn key_down_event(&mut self, keycode: KeyCode, modifiers: KeyMods, repeat: bool) {
         let context = get_context();
+        if !context.ime_preedit_string.is_empty() {return;}
         context.keys_down.insert(keycode);
         if repeat == false {
             context.keys_pressed.insert(keycode);
@@ -705,6 +721,7 @@ impl EventHandler for Stage {
 
     fn key_up_event(&mut self, keycode: KeyCode, modifiers: KeyMods) {
         let context = get_context();
+        if !context.ime_preedit_string.is_empty() {return;}
         context.keys_down.remove(&keycode);
         context.keys_released.insert(keycode);
 
@@ -845,6 +862,34 @@ impl EventHandler for Stage {
             miniquad::window::cancel_quit();
             context.quit_requested = true;
         }
+    }
+    
+    fn on_ime_preedit(&mut self, text: &str) {
+        // info!("IME PREEDIT: {}", text);
+        let context = get_context();
+        
+        context.ime_preedit_string = text.to_string();
+        
+        context.input_events.iter_mut().for_each(|arr| {
+            arr.push(MiniquadInputEvent::ImePreedit {
+                text: text.to_string(),
+            });
+        });
+    }
+    
+    fn on_ime_commit(&mut self, text: Option<&str>) {
+        // info!("IME COMMIT: {:?}", text);
+        let context = get_context();
+        
+        context.ime_preedit_string.clear();
+        
+        context.ime_commit_string = text.map(|text| text.to_string());
+        
+        context.input_events.iter_mut().for_each(|arr| {
+            arr.push(MiniquadInputEvent::ImeCommit {
+                text: context.ime_commit_string.clone(),
+            });
+        });
     }
 }
 

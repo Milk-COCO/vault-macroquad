@@ -10,7 +10,7 @@ use super::{Widget, Action};
 pub struct Button {
     width: f32,
     height: f32,
-    text: String,
+    pub text: String,
     text_color: Color,
     hovered_text_color: Color,
     bg: Color,
@@ -35,6 +35,10 @@ impl Button {
             click: false,
             font,
         }
+    }
+    
+    pub fn get_text(&self) -> String {
+        self.text.clone()
     }
 }
 

@@ -27,9 +27,9 @@ opt-level = 3
 all-features = true
 
 [dependencies]
-miniquad = { version = "=0.4.8", features = ["log-impl"] }
+miniquad = { path = "../vault-miniquad", features = ["log-impl"] }
 quad-rand = "0.2.3"
-glam = { version = "0.27", features = ["scalar-math"] }
+glam = { version = "0.32.1", features = ["scalar-math"] }
 image = { version = "0.24", default-features = false, features = ["png", "tga"] }
 macroquad_macro = { version = "0.1.8", path = "macroquad_macro" }
 fontdue = "0.9"
@@ -38,6 +38,7 @@ log = { version = "0.4", optional = true }
 quad-snd = { version = "0.2", optional = true }
 parking_lot = "0.12.5"
 arboard = "3.6.1"
+objc = "0.2.7"
 
 [dev-dependencies]
 macroquad-particles = { path = "./particles" }
