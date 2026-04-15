@@ -1,7 +1,7 @@
 //! This module defines the [`Toggle`] widget that can be toggled on and off.
 use std::any::Any;
-use std::sync::Arc;
-use parking_lot::RwLock;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::prelude::*;
 
 use super::{Widget, Action};
@@ -16,12 +16,12 @@ pub struct Toggle {
     hover: bool,
     toggle: bool,
     just_clicked: bool,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
 }
 
 impl Toggle {
     /// Creates a new [`Toggle`] widget.
-    pub fn new(width: f32, height: f32, text: String, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
+    pub fn new(width: f32, height: f32, text: String, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
         Self {
             width,
             height,

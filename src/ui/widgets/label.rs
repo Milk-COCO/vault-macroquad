@@ -1,7 +1,7 @@
 //! This module defines the [`Label`] widget that displays text on the screen.
 use std::any::Any;
-use std::sync::Arc;
-use parking_lot::RwLock;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::prelude::*;
 
 use super::Widget;
@@ -11,13 +11,13 @@ pub struct Label {
     text: String,
     bg: Color,
     fg: Color,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
     size: f32,
 }
 
 impl Label {
     /// Creates a new [`Label`] widget.
-    pub fn new(text: String, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>, size: f32) -> Self {
+    pub fn new(text: String, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>, size: f32) -> Self {
         Self {
             text,
             bg,

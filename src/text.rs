@@ -1,15 +1,14 @@
 //! Functions to load fonts and draw text.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::{once};
 use std::ops::{Deref, DerefMut};
-use parking_lot::RwLock;
+use std::rc::Rc;
 use crate::{color::Color, get_context, get_quad_context, math::{vec3, Rect}, texture::{Image, TextureHandle}, Error, FONTS};
 
 use crate::color::WHITE;
 use glam::vec2;
-
-use std::sync::{Arc};
 
 pub(crate) mod atlas;
 
@@ -26,9 +25,9 @@ pub(crate) struct CharacterInfo {
 /// TTF font loaded to GPU
 #[derive(Clone)]
 pub struct Font {
-    pub(crate) font: Arc<fontdue::Font>,
-    pub(crate) atlas: Arc<RwLock<Atlas>>,
-    pub(crate) characters: Arc<RwLock<HashMap<(char, u16), CharacterInfo>>>,
+    pub(crate) font: Rc<fontdue::Font>,
+    pub(crate) atlas: Rc<RefCell<Atlas>>,
+    pub(crate) characters: Rc<RefCell<HashMap<(char, u16), CharacterInfo>>>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -53,12 +52,6 @@ pub struct TextDimensions {
     pub offset_y: f32,
 }
 
-#[allow(dead_code)]
-fn require_fn_to_be_send() {
-    fn require_send<T: Send>() {}
-    require_send::<Font>();
-}
-
 impl std::fmt::Debug for Font {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Font")
@@ -68,24 +61,24 @@ impl std::fmt::Debug for Font {
 }
 
 impl Font {
-    pub(crate) fn load_from_bytes(atlas: Arc<RwLock<Atlas>>, bytes: &[u8]) -> Result<Font, Error> {
+    pub(crate) fn load_from_bytes(atlas: Rc<RefCell<Atlas>>, bytes: &[u8]) -> Result<Font, Error> {
         Ok(Font {
-            font: Arc::new(fontdue::Font::from_bytes(
+            font: Rc::new(fontdue::Font::from_bytes(
                 bytes,
                 fontdue::FontSettings::default(),
             )?),
-            characters: Arc::new(RwLock::new(HashMap::new())),
+            characters: Rc::new(RefCell::new(HashMap::new())),
             atlas,
         })
     }
 
-    pub(crate) fn set_atlas(&mut self, atlas: Arc<RwLock<Atlas>>) {
+    pub(crate) fn set_atlas(&mut self, atlas: Rc<RefCell<Atlas>>) {
         self.atlas = atlas;
     }
 
     pub(crate) fn set_characters(
         &mut self,
-        characters: Arc<RwLock<HashMap<(char, u16), CharacterInfo>>>,
+        characters: Rc<RefCell<HashMap<(char, u16), CharacterInfo>>>,
     ) {
         self.characters = characters;
     }
@@ -150,8 +143,8 @@ impl Font {
     pub(crate) fn cache_glyph(&self, char: char, size: f32) {
         Self::cache_glyph_many(
             self.font.deref(),
-            self.atlas.write().deref_mut(),
-            self.characters.write().deref_mut(),
+            self.atlas.borrow_mut().deref_mut(),
+            self.characters.borrow_mut().deref_mut(),
             once(char),
             size
         );
@@ -177,10 +170,10 @@ impl Font {
         for character in text.chars() {
             self.cache_glyph(character, font_size);
 
-            let font_data = &self.characters.write()[&(character, font_size.round() as u16)];
+            let font_data = &self.characters.borrow_mut()[&(character, font_size.round() as u16)];
             let offset_y = font_data.offset_y as f32 * font_scale_y;
 
-            let atlas = self.atlas.write();
+            let atlas = self.atlas.borrow_mut();
             let glyph = atlas.get(font_data.sprite).unwrap().rect;
             let advance = font_data.advance * font_scale_x;
             glyph_callback(advance);
@@ -196,9 +189,9 @@ impl Font {
         }
     }
     
-    /// 把自己包装成 `Arc<RwLock<Font>>` 便于使用
-    pub fn shared(self) -> Arc<RwLock<Self>> {
-        Arc::new(RwLock::new(self))
+    /// 把自己包装成 `Rc<RefCell<Font>>` 便于使用
+    pub fn shared(self) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(self))
     }
 }
 
@@ -235,7 +228,7 @@ impl Font {
     /// # }
     /// ```
     pub fn set_filter(&mut self, filter_mode: miniquad::FilterMode) {
-        self.atlas.write().set_filter(filter_mode);
+        self.atlas.borrow_mut().set_filter(filter_mode);
     }
 
     // pub fn texture(&self) -> Texture2D {
@@ -248,7 +241,7 @@ impl Font {
 /// Arguments for "draw_text_ex" function such as font, font_size etc
 #[derive(Debug, Clone)]
 pub struct TextParams {
-    pub font: Option<Arc<RwLock<Font>>>,
+    pub font: Option<Rc<RefCell<Font>>>,
     /// Base size for character height. The size in pixel used during font rasterizing.
     pub font_size: f32,
     /// The glyphs sizes actually drawn on the screen will be font_size * font_scale
@@ -291,7 +284,7 @@ pub async fn load_ttf_font(path: &str) -> Result<Font, Error> {
 /// let font = load_ttf_font_from_bytes(include_bytes!("font.ttf"));
 /// ```
 pub fn load_ttf_font_from_bytes(bytes: &[u8]) -> Result<Font, Error> {
-    let atlas = Arc::new(RwLock::new(Atlas::new(
+    let atlas = Rc::new(RefCell::new(Atlas::new(
         get_quad_context(),
         miniquad::FilterMode::Linear,
     )));
@@ -412,7 +405,7 @@ pub(crate) fn measure_text_ex_in(
 
 pub fn measure_text_ex(
     text: impl AsRef<str>,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
     rot: f32,
     font_size: f32,
     font_scale: f32,
@@ -429,11 +422,11 @@ pub fn measure_text_ex(
         || { get_default_font().clone() },
         |f| f,
     );
-    let font_lock = font_arc.read();
+    let font_lock = font_arc.borrow();
     let font = font_lock.deref();
     
-    let mut atlas_guard = font.atlas.write();
-    let mut chars_guard = font.characters.write();
+    let mut atlas_guard = font.atlas.borrow_mut();
+    let mut chars_guard = font.characters.borrow_mut();
     let (font, atlas, characters) = (font.font.deref(), atlas_guard.deref_mut(), chars_guard.deref_mut());
     
     measure_text_ex_in(text,font,atlas,characters,rot,font_size,font_scale,font_scale_aspect)
@@ -459,12 +452,12 @@ pub fn draw_text_ex(
         || { get_default_font().clone() },
         |f| f,
     );
-    let font_lock = font_arc.read();
+    let font_lock = font_arc.borrow();
     let font = font_lock.deref();
     
     
-    let mut atlas_guard = font.atlas.write();
-    let mut chars_guard = font.characters.write();
+    let mut atlas_guard = font.atlas.borrow_mut();
+    let mut chars_guard = font.characters.borrow_mut();
     let (font, atlas, characters) = (font.font.deref(), atlas_guard.deref_mut(), chars_guard.deref_mut());
     
     draw_text_ex_in(
@@ -536,8 +529,6 @@ pub(crate) fn draw_text_ex_in(
     let (x, y) = (ox - dx, oy - dy);
     let data = dim.chars;
     
-    let scale = dim.smooth;
-    
     for (glyph, dest) in data {
         let new_center = vec2(x + dest.x,  y + dest.y);
         crate::texture::draw_texture_ex(
@@ -547,7 +538,7 @@ pub(crate) fn draw_text_ex_in(
             new_center,
             color,
             crate::texture::DrawTextureParams {
-                dest_size: Some(vec2(scale * dest.w, scale * dest.h)),
+                dest_size: Some(vec2(dest.w, dest.h)),
                 source: Some(glyph),
                 rotation: rot,
                 pivot: Some(new_center),
@@ -610,7 +601,7 @@ pub fn draw_multiline_text_ex(
     } else {
         get_default_font()
     };
-    let font_lock = font_arc.read();
+    let font_lock = font_arc.borrow();
     let font = font_lock.deref();
     
     let line_distance = match line_distance_factor {
@@ -634,8 +625,8 @@ pub fn draw_multiline_text_ex(
     let dx = (line_distance * params.font_size * params.font_scale) * params.rotation.sin();
     let dy = (line_distance * params.font_size * params.font_scale) * params.rotation.cos();
     
-    let mut atlas_guard = font.atlas.write();
-    let mut chars_guard = font.characters.write();
+    let mut atlas_guard = font.atlas.borrow_mut();
+    let mut chars_guard = font.characters.borrow_mut();
     let (font, atlas, characters) = (font.font.deref(), atlas_guard.deref_mut(), chars_guard.deref_mut());
     
     for line in text.lines() {
@@ -672,7 +663,7 @@ pub fn draw_multiline_text_ex(
 /// Get the text center.
 pub fn get_text_center(
     text: impl AsRef<str>,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
     font_size: f32,
     font_scale: f32,
     rotation: f32,
@@ -687,25 +678,25 @@ pub fn get_text_center(
 
 pub fn measure_text(
     text: impl AsRef<str>,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
     font_size: f32,
     font_scale: f32,
 ) -> TextDimensions {
     let font_arc = font.unwrap_or_else(|| get_default_font().clone());
-    let font_lock = font_arc.read();
+    let font_lock = font_arc.borrow();
     let font = font_lock.deref();
     font.measure_text(text, font_size, font_scale, font_scale, |_| {})
 }
 
 pub fn measure_multiline_text(
     text: &str,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
     font_size: f32,
     font_scale: f32,
     line_distance_factor: Option<f32>,
 ) -> TextDimensions {
     let font_arc = font.unwrap_or_else(|| get_default_font().clone());
-    let font_lock = font_arc.read();
+    let font_lock = font_arc.borrow();
     let font = font_lock.deref();
     let line_distance = match line_distance_factor {
         Some(distance) => distance,
@@ -734,13 +725,14 @@ pub fn measure_multiline_text(
 /// Converts word breaks to newlines wherever the text would otherwise exceed the given length.
 pub fn wrap_text(
     text: &str,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
     font_size: f32,
     font_scale: f32,
     maximum_line_length: f32,
 ) -> String {
-    let font_lock = font.unwrap_or_else(|| get_default_font().clone());
-    let font = font_lock.write();
+    let font_rc = font.unwrap_or_else(|| get_default_font().clone());
+    let mut font_ref = font_rc.borrow_mut();
+    let font = font_ref.deref_mut();
 
     // This is always a bit too much memory, but it saves a lot of reallocations.
     let mut new_text =
@@ -803,32 +795,41 @@ pub fn wrap_text(
 }
 
 pub(crate) struct FontsStorage {
-    pub default_font: Arc<RwLock<Font>>,
+    pub default_font: Rc<RefCell<Font>>,
 }
 
 impl FontsStorage {
     pub(crate) fn new(ctx: &mut dyn miniquad::RenderingBackend) -> FontsStorage {
-        let atlas = Arc::new(RwLock::new(Atlas::new(ctx, miniquad::FilterMode::Linear)));
+        let atlas = Rc::new(RefCell::new(Atlas::new(ctx, miniquad::FilterMode::Linear)));
 
-        let default_font = Arc::new(RwLock::new(Font::load_from_bytes(atlas, include_bytes!("ProggyClean.ttf")).unwrap()));
+        let default_font = Rc::new(RefCell::new(Font::load_from_bytes(atlas, include_bytes!("ProggyClean.ttf")).unwrap()));
         FontsStorage { default_font }
+    }
+    
+    
+    pub fn get_default_font(&self) -> Rc<RefCell<Font>> {
+        self.default_font.clone()
+    }
+    
+    pub fn set_default_font(&mut self, font: Rc<RefCell<Font>>) {
+        self.default_font = font;
     }
 }
 
 /// Returns macroquads default font.
-pub fn get_default_font() -> Arc<RwLock<Font>> {
-    FONTS.get().unwrap().read().default_font.clone()
+pub fn get_default_font() -> Rc<RefCell<Font>> {
+    unsafe { FONTS.as_ref().unwrap().get_default_font() }
 }
 
 /// Replaces macroquads default font with `font`.
-pub fn set_default_font(font: Arc<RwLock<Font>>) {
-    FONTS.get().unwrap().write().default_font = font;
+pub fn set_default_font(font: Rc<RefCell<Font>>) {
+    unsafe { FONTS.as_mut().unwrap().set_default_font(font); }
 }
 
 /// From given font size in world space gives
 /// (font_size, font_scale and font_aspect) params to make rasterized font
 /// looks good in currently active camera
-pub fn camera_font_scale(world_font_size: f32) -> (u16, f32, f32) {
+pub fn camera_font_scale(world_font_size: f32) -> (f32, f32, f32) {
     let context = get_context();
     let (scr_w, scr_h) = miniquad::window::screen_size();
     let cam_space = context
@@ -839,7 +840,7 @@ pub fn camera_font_scale(world_font_size: f32) -> (u16, f32, f32) {
 
     let screen_font_size = world_font_size * scr_h / cam_h;
 
-    let font_size = screen_font_size as u16;
+    let font_size = screen_font_size;
 
     (font_size, cam_h / scr_h, scr_h / scr_w * cam_w / cam_h)
 }

@@ -1,7 +1,7 @@
 //! This module defines the [`Button`] widget that can be clicked to perform an action.
 use std::any::Any;
-use std::sync::Arc;
-use parking_lot::RwLock;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::prelude::*;
 
 use super::{Widget, Action};
@@ -17,12 +17,12 @@ pub struct Button {
     fg: Color,
     hover: bool,
     click: bool,
-    font: Option<Arc<RwLock<Font>>>,
+    font: Option<Rc<RefCell<Font>>>,
 }
 
 impl Button {
     /// Creates a new [`Button`] widget.
-    pub fn new(width: f32, height: f32, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Arc<RwLock<Font>>>) -> Self {
+    pub fn new(width: f32, height: f32, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
         Self {
             width,
             height,

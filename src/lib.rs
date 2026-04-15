@@ -36,6 +36,7 @@
 //! }
 //!```
 
+use std::cell::RefCell;
 use miniquad::*;
 
 use std::collections::{HashMap, HashSet};
@@ -155,7 +156,6 @@ use crate::{
 };
 
 use glam::{vec2, Mat4, Vec2};
-use parking_lot::RwLock;
 use crate::text::FontsStorage;
 
 pub(crate) mod thread_assert {
@@ -501,16 +501,26 @@ impl Context {
 #[no_mangle]
 static mut CONTEXT: Option<Context> = None;
 #[no_mangle]
-static FONTS: OnceLock<RwLock<FontsStorage>> = OnceLock::new();
+static mut FONTS: Option<FontsStorage> = None;
 
 pub fn init_fonts() {
     let fonts = FontsStorage::new(miniquad::window::new_rendering_backend().deref_mut());
-    FONTS.set(RwLock::new(fonts)).map_err(|_|panic!("Called `init_fonts()` second time. To refresh fonts, call `reset_fonts()`"));
+    unsafe {
+        if FONTS.is_some() {
+            panic!("Called `init_fonts()` second time. To refresh fonts, call `reset_fonts()`")
+        }
+        FONTS = Some(fonts)
+    }
 }
 
 pub fn reset_fonts() {
     let fonts = FontsStorage::new(miniquad::window::new_rendering_backend().deref_mut());
-    *FONTS.get().expect("Called `reset_fonts()` before `init_fonts()`").write().deref_mut() = fonts;
+    unsafe {
+        if FONTS.is_none() {
+            panic!("Called `reset_fonts()` before `init_fonts()`");
+        }
+        FONTS = Some(fonts);
+    }
 }
 
 // This is required for #[macroquad::test]
