@@ -1,12 +1,9 @@
 [package]
 name = "macroquad"
 version = "0.4.14"
-authors = ["not-fl3 <not.fl3@gmail.com>"]
 edition = "2021"
-homepage = "https://github.com/not-fl3/macroquad"
-repository = "https://github.com/not-fl3/macroquad"
 description = """
-Simple and easy to use graphics library
+Edited macroquad for vault .
 """
 readme="README.md"
 license = "MIT OR Apache-2.0"
@@ -38,7 +35,6 @@ log = { version = "0.4", optional = true }
 quad-snd = { version = "0.2", optional = true }
 parking_lot = "0.12.5"
 arboard = "3.6.1"
-objc = "0.2.7"
 
 [dev-dependencies]
 macroquad-particles = { path = "./particles" }
