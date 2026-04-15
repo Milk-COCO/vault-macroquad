@@ -459,6 +459,7 @@ impl Context {
         }
 
         self.dropped_files.clear();
+        self.chars_pressed_queue.clear();
     }
 
     pub(crate) fn pixel_perfect_projection_matrix(&self) -> glam::Mat4 {
