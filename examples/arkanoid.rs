@@ -51,8 +51,8 @@ async fn main() {
             };
             draw_text_ex(
                 "Press space to start",
-                SCR_W / 2. - 5.,
-                SCR_H / 2.,
+                (SCR_W / 2. - 5., SCR_H / 2.),
+                TEXT_LB,
                 text_params,
             );
 
@@ -86,7 +86,7 @@ async fn main() {
                     let block_x = i as f32 * block_w + 0.05;
                     let block_y = j as f32 * block_h + 0.05;
 
-                    draw_rectangle(block_x, block_y, block_w - 0.1, block_h - 0.1, DARKBLUE);
+                    draw_rectangle((block_x, block_y), (block_w - 0.1, block_h - 0.1), DARKBLUE);
                     if ball_x >= block_x
                         && ball_x < block_x + block_w
                         && ball_y >= block_y
@@ -99,12 +99,10 @@ async fn main() {
             }
         }
 
-        draw_circle(ball_x, ball_y, 0.2, RED);
+        draw_circle((ball_x, ball_y), 0.2, RED);
         draw_rectangle(
-            platform_x - platform_width / 2.,
-            SCR_H - platform_height,
-            platform_width,
-            platform_height,
+            (platform_x - platform_width / 2., SCR_H - platform_height),
+           (platform_width, platform_height),
             DARKPURPLE,
         );
 

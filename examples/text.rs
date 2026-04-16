@@ -1,5 +1,5 @@
-use std::sync::Arc;
-use parking_lot::RwLock;
+use std::cell::RefCell;
+use std::rc::Rc;
 use macroquad::prelude::*;
 
 #[macroquad::main("Text")]
@@ -7,7 +7,7 @@ async fn main() {
     let font = load_ttf_font("./examples/DancingScriptRegular.ttf")
         .await
         .unwrap();
-    let font = Arc::new(RwLock::new(font));
+    let font = Rc::new(RefCell::new(font));
 
     let mut angle = 0.0;
 
@@ -27,7 +27,20 @@ async fn main() {
             y += font_size as f32;
             draw_text_ex(text, (20.0, y), TEXT_LB, params);
         }
-
+        
+        draw_text_ex("Dynamic font size:", (320.0, 400.0), TEXT_LB, TextParams::default());
+        draw_text_ex(
+            "QwQ",
+            (320.0, 450.0,),
+            TEXT_LB,
+            TextParams {
+                font_size: get_time().cos() as f32 * 20. + 50.0,
+                font_scale: 1.0,
+                ..Default::default()
+            },
+        );
+        
+        
         draw_text_ex("Dynamic font scale:", (20.0, 400.0), TEXT_LB, TextParams::default());
         draw_text_ex(
             "WoW",
