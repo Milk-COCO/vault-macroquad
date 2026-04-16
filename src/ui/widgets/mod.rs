@@ -59,7 +59,7 @@ pub trait Widget: Any + IntoWidgetOption {
     /// Returns the background color of the widget.
     fn bg(&self) -> Color;
     /// Updates the widget's state based on its position.
-    fn process(&mut self, pos: impl Into<(f32,f32)>);
+    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self;
     /// Renders the widget at the specified position.
     fn draw(&self, pos: impl Into<(f32,f32)>);
 }
@@ -162,17 +162,18 @@ macro_rules! impl_widget_option {
                 }
             }
             
-            fn process(&mut self, pos: impl Into<(f32, f32)>) {
+            fn process(&mut self, pos: impl Into<(f32, f32)>) -> &mut Self {
                 let pos = pos.into();
                 match self {
-                    $(Self::$variant(v) => v.process(pos)),*
+                    $(Self::$variant(v) => { v.process(pos); }),*
                 }
+                self
             }
             
             fn draw(&self, pos: impl Into<(f32, f32)>) {
                 let pos = pos.into();
                 match self {
-                    $(Self::$variant(v) => v.draw(pos)),*
+                    $(Self::$variant(v) => { v.draw(pos); }),*
                 }
             }
         }

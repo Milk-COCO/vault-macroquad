@@ -184,7 +184,7 @@ impl Widget for Button {
         self.bg
     }
 
-    fn process(&mut self, pos: impl Into<(f32,f32)>) {
+    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
         let (x, y) = pos.into();
         let mouse_pos = mouse_position();
         let mx = mouse_pos.0;
@@ -192,9 +192,10 @@ impl Widget for Button {
 
         self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
         self.click = self.hover && is_mouse_button_pressed(MouseButton::Left);
+        self
     }
 
-    fn draw(&self, pos: impl Into<(f32,f32)>) {
+    fn draw(&self, pos: impl Into<(f32,f32)>){
         let (x, y) = pos.into();
         let bg = if self.hover { self.fg } else { self.bg };
         let fg = if self.hover { self.bg } else { self.fg };
@@ -202,7 +203,7 @@ impl Widget for Button {
 
         draw_rectangle((x, y), (self.width, self.height), bg);
         
-        let size = (self.height * 0.4);
+        let size = self.height * 0.4;
         
         let text_size = measure_text(&self.text, self.font.clone(), size, 1.0);
         draw_text_ex(

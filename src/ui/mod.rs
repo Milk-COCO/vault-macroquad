@@ -4,7 +4,7 @@ use std::mem;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::any::Any;
-use crate::prelude::{Button, IntoWidgetOption, Label, Widget, WidgetOption, Widown};
+use crate::prelude::*;
 
 pub mod widgets;
 
@@ -52,7 +52,11 @@ impl<T> GetWidgetOption<T> {
     }
 }
 
-// ============ UiBox 主结构 ============
+macro_rules! widget_not_exist {
+    ($ty:ty,$id:expr) => {
+        panic!("Try to get a `{}` with id {}, but is does not exist.", stringify!($ty), $id)
+    };
+}
 
 pub struct UiBox {
     pub widgets: HashMap<HashOption, Option<WidgetOption>>,
@@ -137,6 +141,31 @@ impl UiBox {
         let key = id.upcast_clone();
         self.widgets.contains_key(&key)
     }
+    
+    pub fn button(&mut self, id: impl IntoHashOption) -> &mut Button {
+        let id = id.into();
+        self.widget_mut::<Button>(id.clone()).unwrap_or_else(|| widget_not_exist!(Button, id))
+    }
+    
+    pub fn container(&mut self, id: impl IntoHashOption) -> &mut Container {
+        let id = id.into();
+        self.widget_mut::<Container>(id.clone()).unwrap_or_else(|| widget_not_exist!(Container, id))
+    }
+    
+    pub fn label(&mut self, id: impl IntoHashOption) -> &mut Label {
+        let id = id.into();
+        self.widget_mut::<Label>(id.clone()).unwrap_or_else(|| widget_not_exist!(Label, id))
+    }
+    
+    pub fn input(&mut self, id: impl IntoHashOption) -> &mut TextInput {
+        let id = id.into();
+        self.widget_mut::<TextInput>(id.clone()).unwrap_or_else(|| widget_not_exist!(TextInput, id))
+    }
+    
+    pub fn picture(&mut self, id: impl IntoHashOption) -> &mut Picture {
+        let id = id.into();
+        self.widget_mut::<Picture>(id.clone()).unwrap_or_else(|| widget_not_exist!(Picture, id))
+    }
 }
 
 // ============ 标记 Trait ============
@@ -144,7 +173,6 @@ impl UiBox {
 /// 标记 trait：标识可用作 HashOption 变体的具体类型
 pub trait Hadown: Hash {}
 
-// ============ HashId: 类型安全的 ID 包装器（可选，零克隆） ============
 
 /// 类型安全的哈希 ID 包装器
 ///
@@ -185,7 +213,6 @@ impl<T> Deref for HashId<T> {
     }
 }
 
-// 便捷转换：T → HashId<T>
 impl<T> From<T> for HashId<T>
 where
     T: Into<HashOption>
@@ -231,9 +258,10 @@ impl<T> std::fmt::Debug for HashId<T> {
 /// ✅ 支持传：
 /// - 所有权: `"id".to_string()`, `42u32`
 /// - 引用: `&"id".to_string()`, `&42u32`
-/// - 字面量: `"id"` (如果实现了 `&str` 支持)
+/// - 字面量: `"id"`
 ///
 /// # 设计原则
+/// 直接克隆！
 /// - 小类型（u32/bool）：`clone()` 是位复制，零开销
 /// - 大类型（String）：一次克隆，高频场景可缓存 `HashId`
 pub trait IntoHashOption: Clone + Into<HashOption> {
@@ -271,7 +299,7 @@ macro_rules! impl_hash_option {
         /// 通用哈希选项枚举
         ///
         /// 支持 `Any` 下转 + `Hash` + `Eq`，用于 HashMap key
-        #[derive(Eq, PartialEq, Clone, Debug)]
+        #[derive(Eq, PartialEq, Clone, Debug, derive_more::Display)]
         pub enum HashOption {
             $($variant($ty)),*
         }
@@ -313,6 +341,10 @@ macro_rules! impl_hash_option {
                     $(Self::$variant(v) => v.hash(state)),*
                 }
             }
+        }
+        
+        impl IntoHashOption for HashOption {
+            fn upcast(self) -> HashOption { self }
         }
         
         

@@ -57,7 +57,7 @@ impl Widget for Toggle {
         self.bg
     }
 
-    fn process(&mut self, pos: impl Into<(f32,f32)>) {
+    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
         let (x, y) = pos.into();
         let mouse_pos = mouse_position();
         let mx = mouse_pos.0;
@@ -66,6 +66,7 @@ impl Widget for Toggle {
         self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
         self.just_clicked = self.hover && is_mouse_button_pressed(MouseButton::Left);
         self.toggle = if self.just_clicked { !self.toggle } else { self.toggle };
+        self
     }
 
     fn draw(&self, pos: impl Into<(f32,f32)>) {

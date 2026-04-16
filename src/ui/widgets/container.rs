@@ -122,7 +122,7 @@ impl Widget for Container {
         self.bg
     }
 
-    fn process(&mut self, pos: impl Into<(f32,f32)>) {
+    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
         let (x,y) = pos.into();
         let (pad_left, pad_right, pad_top, pad_bottom) = self.padding.unwrap_or((0.0, 0.0, 0.0, 0.0));
 
@@ -162,6 +162,7 @@ impl Widget for Container {
                 Direction::Vertical => y += child_height + self.gap,
             }
         }
+        self
     }
 
     fn draw(&self, pos: impl Into<(f32,f32)>) {

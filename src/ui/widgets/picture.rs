@@ -44,8 +44,9 @@ impl Widget for Picture {
         Color::new(0.0, 0.0, 0.0, 0.0)
     }
 
-    fn process(&mut self, _pos: impl Into<(f32,f32)>) {
+    fn process(&mut self, _pos: impl Into<(f32,f32)>) -> &mut Self {
         // Nothing :D
+        self
     }
 
     fn draw(&self, pos: impl Into<(f32,f32)>) {

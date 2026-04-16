@@ -393,444 +393,446 @@ impl Widget for TextInput {
         self.bg
     }
     
-    fn process(&mut self, pos: impl Into<(f32,f32)>) {
-        let (x, y) = pos.into();
-        let mouse_pos = mouse_position();
-        let mx = mouse_pos.0;
-        let my = mouse_pos.1;
-        
-        let padding = 4.0;
-        
-        self.just_clicked = false;
-        self.just_submitted = false;
-        
-        self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
-        
-        let clicked = is_mouse_button_pressed(MouseButton::Left);
-        let mouse_down = is_mouse_button_down(MouseButton::Left);
-        
-        if self.context_menu_open {
-            self.context_menu_container.process(self.context_menu_pos);
+    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
+        (|| {
+            let (x, y) = pos.into();
+            let mouse_pos = mouse_position();
+            let mx = mouse_pos.0;
+            let my = mouse_pos.1;
             
-            if let Some(cut_btn) = self.context_menu_container.get_child_as::<Button>(0) {
-                if cut_btn.is_clicked() {
-                    if let Some(sel) = self.selection {
-                        if !sel.is_empty() {
-                            let start_char = sel.min() as usize;
-                            let end_char = sel.max() as usize;
-                            let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
-                            let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
-                            let selected_text = &self.text[start_byte..end_byte];
-                            if let Ok(mut clipboard) = Clipboard::new() {
-                                clipboard.set_text(selected_text).ok();
-                            }
-                            let mut new_text = String::new();
-                            new_text.push_str(&self.text[..start_byte]);
-                            new_text.push_str(&self.text[end_byte..]);
-                            self.set_text(new_text);
-                            self.cursor_pos = start_char as u32;
-                        }
-                    }
-                    self.context_menu_open = false;
-                    self.long_press_start = None;
-                    self.is_dragging = false;
-                }
-            }
+            let padding = 4.0;
             
-            if let Some(copy_btn) = self.context_menu_container.get_child_as::<Button>(1) {
-                if copy_btn.is_clicked() {
-                    if let Some(sel) = self.selection {
-                        if !sel.is_empty() {
-                            let start_char = sel.min() as usize;
-                            let end_char = sel.max() as usize;
-                            let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
-                            let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
-                            let selected_text = &self.text[start_byte..end_byte];
-                            if let Ok(mut clipboard) = Clipboard::new() {
-                                clipboard.set_text(selected_text).ok();
+            self.just_clicked = false;
+            self.just_submitted = false;
+            
+            self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
+            
+            let clicked = is_mouse_button_pressed(MouseButton::Left);
+            let mouse_down = is_mouse_button_down(MouseButton::Left);
+            
+            if self.context_menu_open {
+                self.context_menu_container.process(self.context_menu_pos);
+                
+                if let Some(cut_btn) = self.context_menu_container.get_child_as::<Button>(0) {
+                    if cut_btn.is_clicked() {
+                        if let Some(sel) = self.selection {
+                            if !sel.is_empty() {
+                                let start_char = sel.min() as usize;
+                                let end_char = sel.max() as usize;
+                                let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
+                                let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
+                                let selected_text = &self.text[start_byte..end_byte];
+                                if let Ok(mut clipboard) = Clipboard::new() {
+                                    clipboard.set_text(selected_text).ok();
+                                }
+                                let mut new_text = String::new();
+                                new_text.push_str(&self.text[..start_byte]);
+                                new_text.push_str(&self.text[end_byte..]);
+                                self.set_text(new_text);
+                                self.cursor_pos = start_char as u32;
                             }
                         }
+                        self.context_menu_open = false;
+                        self.long_press_start = None;
+                        self.is_dragging = false;
                     }
-                    self.context_menu_open = false;
-                    self.long_press_start = None;
-                    self.is_dragging = false;
                 }
-            }
-            
-            if let Some(paste_btn) = self.context_menu_container.get_child_as::<Button>(2) {
-                if paste_btn.is_clicked() {
-                    if let Ok(mut clipboard) = Clipboard::new() {
-                        if let Ok(paste_text) = clipboard.get_text() {
-                            self.delete_selection();
-                            let old_cursor_char = self.cursor_pos as usize;
-                            let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
-                            let mut new_text = String::new();
-                            new_text.push_str(&self.text[..old_cursor_byte]);
-                            new_text.push_str(&paste_text);
-                            new_text.push_str(&self.text[old_cursor_byte..]);
-                            self.set_text(new_text);
-                            self.cursor_pos = (old_cursor_char + paste_text.chars().count()) as u32;
+                
+                if let Some(copy_btn) = self.context_menu_container.get_child_as::<Button>(1) {
+                    if copy_btn.is_clicked() {
+                        if let Some(sel) = self.selection {
+                            if !sel.is_empty() {
+                                let start_char = sel.min() as usize;
+                                let end_char = sel.max() as usize;
+                                let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
+                                let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
+                                let selected_text = &self.text[start_byte..end_byte];
+                                if let Ok(mut clipboard) = Clipboard::new() {
+                                    clipboard.set_text(selected_text).ok();
+                                }
+                            }
                         }
+                        self.context_menu_open = false;
+                        self.long_press_start = None;
+                        self.is_dragging = false;
                     }
-                    self.context_menu_open = false;
-                    self.long_press_start = None;
-                    self.is_dragging = false;
                 }
-            }
-            
-            if clicked {
-                let menu_rect = Rect::new(
-                    self.context_menu_pos.0,
-                    self.context_menu_pos.1,
-                    self.context_menu_container.width(),
-                    self.context_menu_container.height()
-                );
-                if !menu_rect.contains(mouse_pos.into()) {
-                    self.context_menu_open = false;
-                    self.long_press_start = None;
-                    self.is_dragging = false;
+                
+                if let Some(paste_btn) = self.context_menu_container.get_child_as::<Button>(2) {
+                    if paste_btn.is_clicked() {
+                        if let Ok(mut clipboard) = Clipboard::new() {
+                            if let Ok(paste_text) = clipboard.get_text() {
+                                self.delete_selection();
+                                let old_cursor_char = self.cursor_pos as usize;
+                                let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
+                                let mut new_text = String::new();
+                                new_text.push_str(&self.text[..old_cursor_byte]);
+                                new_text.push_str(&paste_text);
+                                new_text.push_str(&self.text[old_cursor_byte..]);
+                                self.set_text(new_text);
+                                self.cursor_pos = (old_cursor_char + paste_text.chars().count()) as u32;
+                            }
+                        }
+                        self.context_menu_open = false;
+                        self.long_press_start = None;
+                        self.is_dragging = false;
+                    }
                 }
-            }
-            return;
-        }
-        
-        let right_clicked = is_mouse_button_pressed(MouseButton::Right);
-        if right_clicked && self.hover {
-            self.context_menu_open = true;
-            self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
-            return;
-        }
-        
-        if clicked && self.hover {
-            self.long_press_start = Some(Instant::now());
-            self.long_press_initial_pos = mouse_pos;
-            self.selected = true;
-            self.just_clicked = true;
-        }
-        
-        let threshold = screen_width().min(screen_height()) * 0.01;
-        let mut cancel_long_press = false;
-        
-        if mouse_down && self.long_press_start.is_some() {
-            let (ix, iy) = self.long_press_initial_pos;
-            let dist = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
-            if dist > threshold {
-                cancel_long_press = true;
-            }
-        }
-        
-        if cancel_long_press {
-            self.long_press_start = None;
-            self.is_dragging = true;
-            
-            let display_text = self.display_text();
-            let avail = self.width - padding * 2.0;
-            let total_w = self.text_width(&display_text);
-            
-            let mut scroll = 0.0;
-            if total_w > avail {
-                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
-                scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
-            }
-            
-            let target = mx - x - padding + scroll;
-            let mut accum = 0.0;
-            let mut new_pos = 0;
-            for (i, c) in display_text.chars().enumerate() {
-                let w = self.measure_prefix_width(std::iter::once(c));
-                if target < accum + w * 0.5 {
-                    break;
+                
+                if clicked {
+                    let menu_rect = Rect::new(
+                        self.context_menu_pos.0,
+                        self.context_menu_pos.1,
+                        self.context_menu_container.width(),
+                        self.context_menu_container.height(),
+                    );
+                    if !menu_rect.contains(mouse_pos.into()) {
+                        self.context_menu_open = false;
+                        self.long_press_start = None;
+                        self.is_dragging = false;
+                    }
                 }
-                accum += w;
-                new_pos = i + 1;
-            }
-            
-            self.cursor_pos = new_pos as u32;
-            self.selection = Some(Selection::new(self.cursor_pos));
-        }
-        
-        let mut long_trigger = false;
-        if mouse_down && self.long_press_start.is_some() {
-            let t = self.long_press_start.unwrap().elapsed().as_millis();
-            let (ix, iy) = self.long_press_initial_pos;
-            let d = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
-            if t > 450 && d < threshold {
-                self.context_menu_open = true;
-                self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
-                self.long_press_start = None;
-                long_trigger = true;
                 return;
             }
-        }
-        
-        if !mouse_down && self.long_press_start.is_some() && !long_trigger {
-            self.is_dragging = true;
-            let double = self.check_double_click(mouse_pos);
             
-            let display_text = self.display_text();
-            let avail = self.width - padding * 2.0;
-            let total_w = self.text_width(&display_text);
-            let mut scroll = 0.0;
-            if total_w > avail {
-                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
-                scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
+            let right_clicked = is_mouse_button_pressed(MouseButton::Right);
+            if right_clicked && self.hover {
+                self.context_menu_open = true;
+                self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
+                return;
             }
             
-            let target = mx - x - padding + scroll;
-            let mut accum = 0.0;
-            let mut new_pos = 0;
-            for (i, c) in display_text.chars().enumerate() {
-                let w = self.measure_prefix_width(std::iter::once(c));
-                if target < accum + w * 0.5 {
-                    break;
+            if clicked && self.hover {
+                self.long_press_start = Some(Instant::now());
+                self.long_press_initial_pos = mouse_pos;
+                self.selected = true;
+                self.just_clicked = true;
+            }
+            
+            let threshold = screen_width().min(screen_height()) * 0.01;
+            let mut cancel_long_press = false;
+            
+            if mouse_down && self.long_press_start.is_some() {
+                let (ix, iy) = self.long_press_initial_pos;
+                let dist = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
+                if dist > threshold {
+                    cancel_long_press = true;
                 }
-                accum += w;
-                new_pos = i + 1;
             }
             
-            self.cursor_pos = new_pos as u32;
-            
-            if double {
-                let s = self.find_word_boundary(self.cursor_pos, false);
-                let e = self.find_word_boundary(self.cursor_pos, true);
-                self.selection = Some(Selection { start: s, end: e });
-            } else {
+            if cancel_long_press {
+                self.long_press_start = None;
+                self.is_dragging = true;
+                
+                let display_text = self.display_text();
+                let avail = self.width - padding * 2.0;
+                let total_w = self.text_width(&display_text);
+                
+                let mut scroll = 0.0;
+                if total_w > avail {
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
+                }
+                
+                let target = mx - x - padding + scroll;
+                let mut accum = 0.0;
+                let mut new_pos = 0;
+                for (i, c) in display_text.chars().enumerate() {
+                    let w = self.measure_prefix_width(std::iter::once(c));
+                    if target < accum + w * 0.5 {
+                        break;
+                    }
+                    accum += w;
+                    new_pos = i + 1;
+                }
+                
+                self.cursor_pos = new_pos as u32;
                 self.selection = Some(Selection::new(self.cursor_pos));
             }
             
-            self.cursor_visible = true;
-            self.cursor_blink_timer = 0.0;
-            self.long_press_start = None;
-        }
-        
-        if self.is_dragging && mouse_down {
-            let display_text = self.display_text();
-            let avail = self.width - padding * 2.0;
-            let total_w = self.text_width(&display_text);
-            let mut scroll = 0.0;
-            if total_w > avail {
-                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
-                scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
-            }
-            
-            let target = mx - x - padding + scroll;
-            let mut accum = 0.0;
-            let mut pos = 0;
-            for (i, c) in display_text.chars().enumerate() {
-                let w = self.measure_prefix_width(std::iter::once(c));
-                if target < accum + w * 0.5 {
-                    break;
+            let mut long_trigger = false;
+            if mouse_down && self.long_press_start.is_some() {
+                let t = self.long_press_start.unwrap().elapsed().as_millis();
+                let (ix, iy) = self.long_press_initial_pos;
+                let d = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
+                if t > 450 && d < threshold {
+                    self.context_menu_open = true;
+                    self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
+                    self.long_press_start = None;
+                    long_trigger = true;
+                    return;
                 }
-                accum += w;
-                pos = i + 1;
             }
             
-            if let Some(ref mut sel) = self.selection {
-                sel.end = pos as u32;
-            }
-            self.cursor_pos = pos as u32;
-        } else if !mouse_down {
-            self.is_dragging = false;
-        }
-        
-        if clicked && !self.hover {
-            self.selected = false;
-            self.is_dragging = false;
-            self.selection = None;
-            self.long_press_start = None;
-            window::set_ime_enabled(false);
-        }
-        
-        if self.selected && is_key_pressed(KeyCode::Escape) {
-            self.selected = false;
-            self.selection = None;
-            window::set_ime_enabled(false);
-        }
-        
-        if self.selected {
-            window::set_ime_enabled(true);
-            
-            self.cursor_blink_timer += get_frame_time();
-            if self.cursor_blink_timer > 0.5 {
+            if !mouse_down && self.long_press_start.is_some() && !long_trigger {
+                self.is_dragging = true;
+                let double = self.check_double_click(mouse_pos);
+                
+                let display_text = self.display_text();
+                let avail = self.width - padding * 2.0;
+                let total_w = self.text_width(&display_text);
+                let mut scroll = 0.0;
+                if total_w > avail {
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
+                }
+                
+                let target = mx - x - padding + scroll;
+                let mut accum = 0.0;
+                let mut new_pos = 0;
+                for (i, c) in display_text.chars().enumerate() {
+                    let w = self.measure_prefix_width(std::iter::once(c));
+                    if target < accum + w * 0.5 {
+                        break;
+                    }
+                    accum += w;
+                    new_pos = i + 1;
+                }
+                
+                self.cursor_pos = new_pos as u32;
+                
+                if double {
+                    let s = self.find_word_boundary(self.cursor_pos, false);
+                    let e = self.find_word_boundary(self.cursor_pos, true);
+                    self.selection = Some(Selection { start: s, end: e });
+                } else {
+                    self.selection = Some(Selection::new(self.cursor_pos));
+                }
+                
+                self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
-                self.cursor_visible = !self.cursor_visible;
+                self.long_press_start = None;
             }
             
-            let display_text = self.display_text();
-            let available_width = self.width - 8.0;
-            let total_width = self.text_width(&display_text);
-            let mut scroll_offset = 0.0;
-            if total_width > available_width {
+            if self.is_dragging && mouse_down {
+                let display_text = self.display_text();
+                let avail = self.width - padding * 2.0;
+                let total_w = self.text_width(&display_text);
+                let mut scroll = 0.0;
+                if total_w > avail {
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
+                }
+                
+                let target = mx - x - padding + scroll;
+                let mut accum = 0.0;
+                let mut pos = 0;
+                for (i, c) in display_text.chars().enumerate() {
+                    let w = self.measure_prefix_width(std::iter::once(c));
+                    if target < accum + w * 0.5 {
+                        break;
+                    }
+                    accum += w;
+                    pos = i + 1;
+                }
+                
+                if let Some(ref mut sel) = self.selection {
+                    sel.end = pos as u32;
+                }
+                self.cursor_pos = pos as u32;
+            } else if !mouse_down {
+                self.is_dragging = false;
+            }
+            
+            if clicked && !self.hover {
+                self.selected = false;
+                self.is_dragging = false;
+                self.selection = None;
+                self.long_press_start = None;
+                window::set_ime_enabled(false);
+            }
+            
+            if self.selected && is_key_pressed(KeyCode::Escape) {
+                self.selected = false;
+                self.selection = None;
+                window::set_ime_enabled(false);
+            }
+            
+            if self.selected {
+                window::set_ime_enabled(true);
+                
+                self.cursor_blink_timer += get_frame_time();
+                if self.cursor_blink_timer > 0.5 {
+                    self.cursor_blink_timer = 0.0;
+                    self.cursor_visible = !self.cursor_visible;
+                }
+                
+                let display_text = self.display_text();
+                let available_width = self.width - 8.0;
+                let total_width = self.text_width(&display_text);
+                let mut scroll_offset = 0.0;
+                if total_width > available_width {
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    scroll_offset = (cursor_w - available_width * 0.5).max(0.0).min(total_width - available_width);
+                }
+                
                 let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
-                scroll_offset = (cursor_w - available_width * 0.5).max(0.0).min(total_width - available_width);
-            }
-            
-            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
-            let (win_x, win_y) = window::get_window_position();
-            let cx = win_x as f32 + x + 4.0 + cursor_w - scroll_offset;
-            let cy = win_y as f32 + y + self.height * 0.5 - 8.0;
-            window::set_ime_position(cx as i32, cy as i32);
-            
-            let mut input = String::new();
-            if let Some(ref t) = get_context().ime_commit_string {
-                // info!("{}",t);
-                if !t.is_empty() {input.push_str(t);}
-            } else
-            {
-                let preedit = &get_context().ime_preedit_string;
-                if preedit.is_empty() {
-                    let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
-                    let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
-                    
-                    if ctrl && is_key_pressed(KeyCode::A) {
-                        self.selection = Some(Selection { start: 0, end: self.text.chars().count() as u32 });
-                        self.cursor_pos = self.text.chars().count() as u32;
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
-                    }
-                    if ctrl && is_key_pressed(KeyCode::X) {
-                        if let Some(sel) = self.selection {
-                            if !sel.is_empty() {
-                                let s = sel.min() as usize;
-                                let e = sel.max() as usize;
-                                let sb = self.char_idx_to_byte_idx(&self.text, s);
-                                let eb = self.char_idx_to_byte_idx(&self.text, e);
-                                let t = &self.text[sb..eb];
-                                if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
-                                let mut nt = String::new();
-                                nt.push_str(&self.text[..sb]);
-                                nt.push_str(&self.text[eb..]);
-                                self.set_text(nt);
-                                self.cursor_pos = s as u32;
+                let (win_x, win_y) = window::get_window_position();
+                let cx = win_x as f32 + x + 4.0 + cursor_w - scroll_offset;
+                let cy = win_y as f32 + y + self.height * 0.5 - 8.0;
+                window::set_ime_position(cx as i32, cy as i32);
+                
+                let mut input = String::new();
+                if let Some(ref t) = get_context().ime_commit_string {
+                    // info!("{}",t);
+                    if !t.is_empty() { input.push_str(t); }
+                } else {
+                    let preedit = &get_context().ime_preedit_string;
+                    if preedit.is_empty() {
+                        let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+                        let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
+                        
+                        if ctrl && is_key_pressed(KeyCode::A) {
+                            self.selection = Some(Selection { start: 0, end: self.text.chars().count() as u32 });
+                            self.cursor_pos = self.text.chars().count() as u32;
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        if ctrl && is_key_pressed(KeyCode::X) {
+                            if let Some(sel) = self.selection {
+                                if !sel.is_empty() {
+                                    let s = sel.min() as usize;
+                                    let e = sel.max() as usize;
+                                    let sb = self.char_idx_to_byte_idx(&self.text, s);
+                                    let eb = self.char_idx_to_byte_idx(&self.text, e);
+                                    let t = &self.text[sb..eb];
+                                    if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                                    let mut nt = String::new();
+                                    nt.push_str(&self.text[..sb]);
+                                    nt.push_str(&self.text[eb..]);
+                                    self.set_text(nt);
+                                    self.cursor_pos = s as u32;
+                                }
                             }
                         }
-                    }
-                    if ctrl && is_key_pressed(KeyCode::C) {
-                        if let Some(sel) = self.selection {
-                            if !sel.is_empty() {
-                                let s = sel.min() as usize;
-                                let e = sel.max() as usize;
-                                let sb = self.char_idx_to_byte_idx(&self.text, s);
-                                let eb = self.char_idx_to_byte_idx(&self.text, e);
-                                let t = &self.text[sb..eb];
-                                if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                        if ctrl && is_key_pressed(KeyCode::C) {
+                            if let Some(sel) = self.selection {
+                                if !sel.is_empty() {
+                                    let s = sel.min() as usize;
+                                    let e = sel.max() as usize;
+                                    let sb = self.char_idx_to_byte_idx(&self.text, s);
+                                    let eb = self.char_idx_to_byte_idx(&self.text, e);
+                                    let t = &self.text[sb..eb];
+                                    if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                                }
                             }
                         }
-                    }
-                    if ctrl && is_key_pressed(KeyCode::V) {
-                        if let Ok(mut cb) = Clipboard::new() {
-                            if let Ok(pt) = cb.get_text() {
-                                self.delete_selection();
-                                let oc = self.cursor_pos as usize;
+                        if ctrl && is_key_pressed(KeyCode::V) {
+                            if let Ok(mut cb) = Clipboard::new() {
+                                if let Ok(pt) = cb.get_text() {
+                                    self.delete_selection();
+                                    let oc = self.cursor_pos as usize;
+                                    let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                                    let mut nt = String::new();
+                                    nt.push_str(&self.text[..ob]);
+                                    nt.push_str(&pt);
+                                    nt.push_str(&self.text[ob..]);
+                                    self.set_text(nt);
+                                    self.cursor_pos = (oc + pt.chars().count()) as u32;
+                                }
+                            }
+                        }
+                        
+                        if self.key_left.update(is_key_down(KeyCode::Left)) {
+                            if ctrl {
+                                self.cursor_pos = self.find_word_boundary(self.cursor_pos, false);
+                            } else {
+                                self.cursor_pos = self.cursor_pos.saturating_sub(1);
+                            }
+                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos + 1, end: self.cursor_pos }); }
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        if self.key_right.update(is_key_down(KeyCode::Right)) {
+                            let cnt = self.text.chars().count() as u32;
+                            if ctrl {
+                                self.cursor_pos = self.find_word_boundary(self.cursor_pos, true);
+                            } else {
+                                self.cursor_pos = (self.cursor_pos + 1).min(cnt);
+                            }
+                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos - 1, end: self.cursor_pos }); }
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        
+                        if is_key_pressed(KeyCode::Home) {
+                            self.cursor_pos = 0;
+                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = 0; }
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        if is_key_pressed(KeyCode::End) {
+                            let cnt = self.text.chars().count() as u32;
+                            self.cursor_pos = cnt;
+                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = cnt; }
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        
+                        if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
+                            self.delete_selection();
+                            let oc = self.cursor_pos as usize;
+                            if oc > 0 {
                                 let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                                let nb = self.char_idx_to_byte_idx(&self.text, oc - 1);
                                 let mut nt = String::new();
-                                nt.push_str(&self.text[..ob]);
-                                nt.push_str(&pt);
+                                nt.push_str(&self.text[..nb]);
                                 nt.push_str(&self.text[ob..]);
                                 self.set_text(nt);
-                                self.cursor_pos = (oc + pt.chars().count()) as u32;
+                                self.cursor_pos = (oc - 1) as u32;
+                            }
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        if self.key_delete.update(is_key_down(KeyCode::Delete)) {
+                            self.delete_selection();
+                            let oc = self.cursor_pos as usize;
+                            let cnt = self.text.chars().count();
+                            if oc < cnt {
+                                let ob = self.char_idx_to_byte_idx(&self.text, oc);
+                                let eb = self.char_idx_to_byte_idx(&self.text, oc + 1);
+                                let mut nt = String::new();
+                                nt.push_str(&self.text[..ob]);
+                                nt.push_str(&self.text[eb..]);
+                                self.set_text(nt);
+                                self.cursor_pos = oc as u32;
+                            }
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
+                        
+                        if is_key_pressed(KeyCode::Enter) {
+                            self.just_submitted = true;
+                        }
+                        
+                        while let Some(key) = get_char_pressed() {
+                            if !key.is_control() {
+                                input.push(key);
+                                // info!("{}",key);
                             }
                         }
+                    } else {
+                        // info!("{}", preedit);
                     }
+                }
+                if !input.is_empty() { self.insert(&input); }
+            }
+            
+            if let Some(max) = self.max_length {
+                let char_count = self.text.chars().count();
+                if char_count > max {
+                    let truncated: String = self.text.chars().take(max).collect();
+                    self.text = truncated;
                     
-                    if self.key_left.update(is_key_down(KeyCode::Left)) {
-                        if ctrl {
-                            self.cursor_pos = self.find_word_boundary(self.cursor_pos, false);
-                        } else {
-                            self.cursor_pos = self.cursor_pos.saturating_sub(1);
-                        }
-                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos + 1, end: self.cursor_pos }); }
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
+                    let new_count = self.text.chars().count() as u32;
+                    if self.cursor_pos > new_count {
+                        self.cursor_pos = new_count;
                     }
-                    if self.key_right.update(is_key_down(KeyCode::Right)) {
-                        let cnt = self.text.chars().count() as u32;
-                        if ctrl {
-                            self.cursor_pos = self.find_word_boundary(self.cursor_pos, true);
-                        } else {
-                            self.cursor_pos = (self.cursor_pos + 1).min(cnt);
-                        }
-                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos - 1, end: self.cursor_pos }); }
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
-                    }
-                    
-                    if is_key_pressed(KeyCode::Home) {
-                        self.cursor_pos = 0;
-                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = 0; }
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
-                    }
-                    if is_key_pressed(KeyCode::End) {
-                        let cnt = self.text.chars().count() as u32;
-                        self.cursor_pos = cnt;
-                        if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = cnt; }
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
-                    }
-                    
-                    if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
-                        self.delete_selection();
-                        let oc = self.cursor_pos as usize;
-                        if oc > 0 {
-                            let ob = self.char_idx_to_byte_idx(&self.text, oc);
-                            let nb = self.char_idx_to_byte_idx(&self.text, oc - 1);
-                            let mut nt = String::new();
-                            nt.push_str(&self.text[..nb]);
-                            nt.push_str(&self.text[ob..]);
-                            self.set_text(nt);
-                            self.cursor_pos = (oc - 1) as u32;
-                        }
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
-                    }
-                    if self.key_delete.update(is_key_down(KeyCode::Delete)) {
-                        self.delete_selection();
-                        let oc = self.cursor_pos as usize;
-                        let cnt = self.text.chars().count();
-                        if oc < cnt {
-                            let ob = self.char_idx_to_byte_idx(&self.text, oc);
-                            let eb = self.char_idx_to_byte_idx(&self.text, oc + 1);
-                            let mut nt = String::new();
-                            nt.push_str(&self.text[..ob]);
-                            nt.push_str(&self.text[eb..]);
-                            self.set_text(nt);
-                            self.cursor_pos = oc as u32;
-                        }
-                        self.cursor_visible = true;
-                        self.cursor_blink_timer = 0.0;
-                    }
-                    
-                    if is_key_pressed(KeyCode::Enter) {
-                        self.just_submitted = true;
-                    }
-                    
-                    while let Some(key) = get_char_pressed() {
-                        if !key.is_control() {
-                            input.push(key);
-                            // info!("{}",key);
-                        }
-                    }
-                } else {
-                    // info!("{}", preedit);
+                    self.selection = None;
                 }
             }
-            if !input.is_empty() { self.insert(&input); }
-        }
-        
-        if let Some(max) = self.max_length {
-            let char_count = self.text.chars().count();
-            if char_count > max {
-                let truncated: String = self.text.chars().take(max).collect();
-                self.text = truncated;
-                
-                let new_count = self.text.chars().count() as u32;
-                if self.cursor_pos > new_count {
-                    self.cursor_pos = new_count;
-                }
-                self.selection = None;
-            }
-        }
+        })();
+        self
     }
     
     fn draw(&self, pos: impl Into<(f32,f32)>) {
