@@ -913,6 +913,7 @@ impl Window {
         } = config.into();
         miniquad::start(miniquad_conf, move || {
             thread_assert::set_thread_id();
+            
             let context = Context::new(
                 update_on.unwrap_or_default(),
                 default_filter_mode,

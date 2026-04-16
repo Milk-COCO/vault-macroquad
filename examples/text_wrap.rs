@@ -17,18 +17,18 @@ async fn main() {
 
         draw_multiline_text(
             &text,
-            20.0,
-            20.0 + dimensions.offset_y,
-            font_size as f32,
+            (20.0,
+            20.0 + dimensions.offset_y),
+            font_size,
             Some(1.0),
             WHITE,
         );
-        draw_rectangle_lines(20.0, 20.0, dimensions.width, dimensions.height, 2.0, BLUE);
+        draw_rectangle_lines((20.0, 20.0), (dimensions.width, dimensions.height), 2.0, BLUE);
         draw_line(
-            20.0 + maximum_line_length,
-            0.0,
-            20.0 + maximum_line_length,
-            screen_height(),
+            (20.0 + maximum_line_length,
+            0.0),
+            (20.0 + maximum_line_length,
+            screen_height()),
             1.0,
             RED,
         );

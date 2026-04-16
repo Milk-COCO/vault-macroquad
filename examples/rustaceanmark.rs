@@ -49,8 +49,8 @@ async fn main() {
 
             draw_texture(
                 &rustacean_tex,
-                rustaceane.pos.x,
-                rustaceane.pos.y,
+                (rustaceane.pos.x,
+                rustaceane.pos.y),
                 rustaceane.color,
             );
         }
@@ -58,8 +58,8 @@ async fn main() {
         draw_fps();
         draw_text(
             format!("Rustaceanes: {}", rustaceanes.len()).as_str(),
-            0.,
-            32.,
+            (0.,
+            32.),
             32.,
             WHITE,
         );

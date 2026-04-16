@@ -13,8 +13,8 @@ fn angle_lerp(a0: f32, a1: f32, t: f32) -> f32 {
 fn draw_cross(x: f32, y: f32, color: Color) {
     let size = 0.1;
     let thickness = 0.005;
-    draw_line(x - size, y, x + size, y, thickness, color);
-    draw_line(x, y - size, x, y + size, thickness, color);
+    draw_line((x - size, y), (x + size, y), thickness, color);
+    draw_line((x, y - size), (x, y + size), thickness, color);
 }
 
 #[macroquad::main("Camera")]
@@ -114,41 +114,41 @@ async fn main() {
         });
 
         // Render some primitives in camera space
-        draw_line(-0.4, 0.4, -0.8, 0.9, 0.05, BLUE);
-        draw_rectangle(-0.3, 0.3, 0.2, 0.2, GREEN);
-        draw_circle(0., 0., 0.1, YELLOW);
+        draw_line((-0.4, 0.4), (-0.8, 0.9), 0.05, BLUE);
+        draw_rectangle((-0.3, 0.3), (0.2, 0.2), GREEN);
+        draw_circle((0., 0.), 0.1, YELLOW);
 
         // Back to screen space, render some text
         set_default_camera();
         draw_text(
             format!("target (WASD keys) = ({:+.2}, {:+.2})", target.0, target.1).as_str(),
-            10.0,
-            10.0,
+            (10.0,
+            10.0),
             15.0,
             BLACK,
         );
         draw_text(
             format!("rotation (mouse wheel) = {rotation} degrees").as_str(),
-            10.0,
-            25.0,
+            (10.0,
+            25.0),
             15.0,
             BLACK,
         );
         draw_text(
             format!("zoom (ctrl + mouse wheel) = {zoom:.2}").as_str(),
-            10.0,
-            40.0,
+            (10.0,
+            40.0),
             15.0,
             BLACK,
         );
         draw_text(
             format!("offset (arrow keys) = ({:+.2}, {:+.2})", offset.0, offset.1).as_str(),
-            10.0,
-            55.0,
+            (10.0,
+            55.0),
             15.0,
             BLACK,
         );
-        draw_text("HELLO", 30.0, 200.0, 30.0, BLACK);
+        draw_text("HELLO", (30.0, 200.0), 30.0, BLACK);
 
         next_frame().await
     }

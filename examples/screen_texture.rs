@@ -20,8 +20,8 @@ async fn main() {
         clear_background(WHITE);
         draw_texture_ex(
             &texture,
-            0.0,
-            0.0,
+            (0.0,
+            0.0),
             WHITE,
             DrawTextureParams {
                 dest_size: Some(vec2(screen_width(), screen_height())),
@@ -34,7 +34,7 @@ async fn main() {
         lens_material.set_uniform("Center", lens_center);
 
         gl_use_material(&lens_material);
-        draw_circle(lens_center.0, lens_center.1, 250.0, RED);
+        draw_circle((lens_center.0, lens_center.1), 250.0, RED);
         gl_use_default_material();
 
         next_frame().await

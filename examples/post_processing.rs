@@ -26,9 +26,9 @@ async fn main() {
         });
 
         clear_background(LIGHTGRAY);
-        draw_line(-30.0, 45.0, 30.0, 45.0, 3.0, BLUE);
-        draw_circle(-45.0, -35.0, 20.0, YELLOW);
-        draw_circle(45.0, -35.0, 20.0, GREEN);
+        draw_line((-30.0, 45.0), (30.0, 45.0), 3.0, BLUE);
+        draw_circle((-45.0, -35.0), 20.0, YELLOW);
+        draw_circle((45.0, -35.0), 20.0, GREEN);
 
         // drawing to the screen
 
@@ -38,8 +38,8 @@ async fn main() {
         gl_use_material(&material);
         draw_texture_ex(
             &render_target.texture,
-            0.,
-            0.,
+            (0.,
+            0.),
             WHITE,
             DrawTextureParams {
                 dest_size: Some(vec2(screen_width(), screen_height())),

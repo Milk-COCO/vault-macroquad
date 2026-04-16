@@ -203,23 +203,23 @@ async fn main() {
 
         mat.set_uniform("test_color", vec4(1., 0., 0., 1.));
 
-        draw_rectangle(50.0, 50.0, 100., 100., WHITE);
+        draw_rectangle((50.0, 50.0), (50.0, 50.0),WHITE);
 
         mat.set_uniform("test_color", vec4(0., 1., 0., 1.));
-        draw_rectangle(160.0, 50.0, 100., 100., WHITE);
+        draw_rectangle((160.0, 50.0), (160.0, 50.0),WHITE);
 
         mat.set_uniform("test_color", vec4(0., 0., 1., 1.));
-        draw_rectangle(270.0, 50.0, 100., 100., WHITE);
+        draw_rectangle((270.0, 50.0), (270.0, 50.0),WHITE);
 
         gl_use_material(&mat_with_array);
         let mut colors: [Vec4; 10] = [vec4(0.0, 1.0, 0.0, 0.0); 10];
         colors[5] = vec4(0.0, 1.0, 1.0, 1.0);
         mat_with_array.set_uniform_array("test_color", &colors[..]);
-        draw_rectangle(50.0, 160.0, 100., 100., WHITE);
+        draw_rectangle((50.0, 160.0), (50.0, 160.0),WHITE);
 
         gl_use_default_material();
 
-        draw_rectangle(380.0, 50.0, 100., 100., YELLOW);
+        draw_rectangle((380.0, 50.0), (380.0, 50.0),YELLOW);
 
         next_frame().await
     }

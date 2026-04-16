@@ -81,14 +81,14 @@ async fn main() {
             let offset_y = (screen_height() - game_size) / 2. + 10.;
             let sq_size = (screen_height() - offset_y * 2.) / SQUARES as f32;
 
-            draw_rectangle(offset_x, offset_y, game_size - 20., game_size - 20., WHITE);
+            draw_rectangle((offset_x, offset_y), (game_size - 20., game_size - 20.), WHITE);
 
             for i in 1..SQUARES {
                 draw_line(
-                    offset_x,
-                    offset_y + sq_size * i as f32,
-                    screen_width() - offset_x,
-                    offset_y + sq_size * i as f32,
+                    (offset_x,
+                    offset_y + sq_size * i as f32),
+                    (screen_width() - offset_x,
+                    offset_y + sq_size * i as f32),
                     2.,
                     LIGHTGRAY,
                 );
@@ -96,42 +96,42 @@ async fn main() {
 
             for i in 1..SQUARES {
                 draw_line(
-                    offset_x + sq_size * i as f32,
-                    offset_y,
-                    offset_x + sq_size * i as f32,
-                    screen_height() - offset_y,
+                    (offset_x + sq_size * i as f32,
+                    offset_y),
+                    (offset_x + sq_size * i as f32,
+                    screen_height() - offset_y),
                     2.,
                     LIGHTGRAY,
                 );
             }
 
             draw_rectangle(
-                offset_x + snake.head.0 as f32 * sq_size,
-                offset_y + snake.head.1 as f32 * sq_size,
-                sq_size,
-                sq_size,
+                (offset_x + snake.head.0 as f32 * sq_size,
+                offset_y + snake.head.1 as f32 * sq_size),
+                (sq_size,
+                sq_size),
                 DARKGREEN,
             );
 
             for (x, y) in &snake.body {
                 draw_rectangle(
-                    offset_x + *x as f32 * sq_size,
-                    offset_y + *y as f32 * sq_size,
-                    sq_size,
-                    sq_size,
+                    (offset_x + *x as f32 * sq_size,
+                    offset_y + *y as f32 * sq_size),
+                    (sq_size,
+                    sq_size),
                     LIME,
                 );
             }
 
             draw_rectangle(
-                offset_x + fruit.0 as f32 * sq_size,
-                offset_y + fruit.1 as f32 * sq_size,
-                sq_size,
-                sq_size,
+                (offset_x + fruit.0 as f32 * sq_size,
+                offset_y + fruit.1 as f32 * sq_size),
+                (sq_size,
+                sq_size),
                 GOLD,
             );
 
-            draw_text(format!("SCORE: {score}").as_str(), 10., 20., 20., DARKGRAY);
+            draw_text(format!("SCORE: {score}").as_str(), (10., 20.), 20., DARKGRAY);
         } else {
             clear_background(WHITE);
             let text = "Game Over. Press [enter] to play again.";
@@ -140,8 +140,8 @@ async fn main() {
 
             draw_text(
                 text,
-                screen_width() / 2. - text_size.width / 2.,
-                screen_height() / 2. + text_size.height / 2.,
+                (screen_width() / 2. - text_size.width / 2.,
+                screen_height() / 2. + text_size.height / 2.),
                 font_size,
                 DARKGRAY,
             );

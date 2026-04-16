@@ -52,7 +52,6 @@ async fn main() {
             draw_text_ex(
                 "Press space to start",
                 (SCR_W / 2. - 5., SCR_H / 2.),
-                TEXT_LB,
                 text_params,
             );
 
@@ -101,8 +100,10 @@ async fn main() {
 
         draw_circle((ball_x, ball_y), 0.2, RED);
         draw_rectangle(
-            (platform_x - platform_width / 2., SCR_H - platform_height),
-           (platform_width, platform_height),
+            (platform_x - platform_width / 2.,
+            SCR_H - platform_height),
+            (platform_width,
+            platform_height),
             DARKPURPLE,
         );
 

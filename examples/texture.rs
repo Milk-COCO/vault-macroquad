@@ -6,7 +6,7 @@ async fn main() {
 
     loop {
         clear_background(LIGHTGRAY);
-        draw_texture(&texture, 0., 0., WHITE);
+        draw_texture(&texture, (0., 0.), WHITE);
         next_frame().await
     }
 }

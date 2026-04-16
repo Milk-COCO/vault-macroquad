@@ -71,7 +71,6 @@ async fn main() {
                 text,
                 (screen_width() / 2. - text_size.width / 2.,
                 screen_height() / 2. - text_size.height / 2.),
-                TEXT_LB,
                 font_size,
                 DARKGRAY,
             );
@@ -88,15 +87,15 @@ async fn main() {
                 for _ in 0..10 {
                     asteroids.push(Asteroid {
                         pos: screen_center
-                            + Vec2::new(quad_rand::gen_range(-1., 1.), quad_rand::gen_range(-1., 1.))
+                            + Vec2::new(rand::gen_range(-1., 1.), rand::gen_range(-1., 1.))
                                 .normalize()
                                 * screen_width().min(screen_height())
                                 / 2.,
-                        vel: Vec2::new(quad_rand::gen_range(-1., 1.), quad_rand::gen_range(-1., 1.)),
+                        vel: Vec2::new(rand::gen_range(-1., 1.), rand::gen_range(-1., 1.)),
                         rot: 0.,
-                        rot_speed: quad_rand::gen_range(-2., 2.),
+                        rot_speed: rand::gen_range(-2., 2.),
                         size: screen_width().min(screen_height()) / 10.,
-                        sides: quad_rand::gen_range(3, 8),
+                        sides: rand::gen_range(3, 8),
                         collided: false,
                     })
                 }
@@ -175,9 +174,9 @@ async fn main() {
                         new_asteroids.push(Asteroid {
                             pos: asteroid.pos,
                             vel: Vec2::new(bullet.vel.y, -bullet.vel.x).normalize()
-                                * quad_rand::gen_range(1., 3.),
-                            rot: quad_rand::gen_range(0., 360.),
-                            rot_speed: quad_rand::gen_range(-2., 2.),
+                                * rand::gen_range(1., 3.),
+                            rot: rand::gen_range(0., 360.),
+                            rot_speed: rand::gen_range(-2., 2.),
                             size: asteroid.size * 0.8,
                             sides: asteroid.sides - 1,
                             collided: false,
@@ -185,9 +184,9 @@ async fn main() {
                         new_asteroids.push(Asteroid {
                             pos: asteroid.pos,
                             vel: Vec2::new(-bullet.vel.y, bullet.vel.x).normalize()
-                                * quad_rand::gen_range(1., 3.),
-                            rot: quad_rand::gen_range(0., 360.),
-                            rot_speed: quad_rand::gen_range(-2., 2.),
+                                * rand::gen_range(1., 3.),
+                            rot: rand::gen_range(0., 360.),
+                            rot_speed: rand::gen_range(-2., 2.),
                             size: asteroid.size * 0.8,
                             sides: asteroid.sides - 1,
                             collided: false,
@@ -220,7 +219,8 @@ async fn main() {
 
         for asteroid in asteroids.iter() {
             draw_poly_lines(
-                (asteroid.pos.x, asteroid.pos.y),
+                (asteroid.pos.x,
+                asteroid.pos.y),
                 asteroid.sides,
                 asteroid.size,
                 asteroid.rot,

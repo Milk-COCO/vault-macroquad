@@ -34,17 +34,17 @@ async fn main() {
 
         clear_background(LIGHTGRAY);
 
-        draw_text("Hello Letterbox", 20.0, 20.0, 30.0, DARKGRAY);
-        draw_circle(VIRTUAL_WIDTH / 2.0 - 65.0, VIRTUAL_HEIGHT / 2.0, 35.0, RED);
-        draw_circle(VIRTUAL_WIDTH / 2.0 + 65.0, VIRTUAL_HEIGHT / 2.0, 35.0, BLUE);
+        draw_text("Hello Letterbox", (20.0, 20.0), 30.0, DARKGRAY);
+        draw_circle((VIRTUAL_WIDTH / 2.0 - 65.0, VIRTUAL_HEIGHT / 2.0), 35.0, RED);
+        draw_circle((VIRTUAL_WIDTH / 2.0 + 65.0, VIRTUAL_HEIGHT / 2.0), 35.0, BLUE);
         draw_circle(
-            VIRTUAL_WIDTH / 2.0,
-            VIRTUAL_HEIGHT / 2.0 - 65.0,
+            (VIRTUAL_WIDTH / 2.0,
+            VIRTUAL_HEIGHT / 2.0 - 65.0),
             35.0,
             YELLOW,
         );
 
-        draw_circle(virtual_mouse_pos.x, virtual_mouse_pos.y, 15.0, BLACK);
+        draw_circle((virtual_mouse_pos.x, virtual_mouse_pos.y), 15.0, BLACK);
 
         // ------------------------------------------------------------------------
         // Begin drawing the window screen
@@ -56,8 +56,8 @@ async fn main() {
         // Draw 'render_target' to window screen, porperly scaled and letterboxed
         draw_texture_ex(
             &render_target.texture,
-            (screen_width() - (VIRTUAL_WIDTH * scale)) * 0.5,
-            (screen_height() - (VIRTUAL_HEIGHT * scale)) * 0.5,
+            ((screen_width() - (VIRTUAL_WIDTH * scale)) * 0.5,
+            (screen_height() - (VIRTUAL_HEIGHT * scale)) * 0.5),
             WHITE,
             DrawTextureParams {
                 dest_size: Some(vec2(VIRTUAL_WIDTH * scale, VIRTUAL_HEIGHT * scale)),
