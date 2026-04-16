@@ -20,6 +20,23 @@ pub struct Button {
     font: Option<Rc<RefCell<Font>>>,
 }
 
+impl Default for Button {
+    fn default() -> Self {
+        Self {
+            width: 200.0,
+            height: 50.0,
+            text: "".to_string(),
+            text_color: GRAY,
+            hovered_text_color: WHITE,
+            bg: GRAY,
+            fg: WHITE,
+            hover: false,
+            click: false,
+            font: None,
+        }
+    }
+}
+
 impl Button {
     /// Creates a new [`Button`] widget.
     pub fn new(width: f32, height: f32, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
@@ -36,6 +53,43 @@ impl Button {
             font,
         }
     }
+    
+    pub fn with_width(self, width: f32) -> Self {
+        Self { width, ..self }
+    }
+    
+    pub fn with_height(self, height: f32) -> Self {
+        Self { height, ..self }
+    }
+    
+    pub fn with_text(self, text: String) -> Self {
+        Self { text, ..self }
+    }
+    
+    pub fn with_text_color(self, text_color: Color) -> Self {
+        Self { text_color, ..self }
+    }
+    
+    pub fn with_hovered_text_color(self, hovered_text_color: Color) -> Self {
+        Self { hovered_text_color, ..self }
+    }
+    
+    pub fn with_bg(self, bg: Color) -> Self {
+        Self { bg, ..self }
+    }
+    
+    pub fn with_fg(self, fg: Color) -> Self {
+        Self { fg, ..self }
+    }
+    
+    pub fn with_font(self, font: Rc<RefCell<Font>>) -> Self {
+        Self { font: Some(font), ..self }
+    }
+    
+    pub fn without_font(self) -> Self {
+        Self { font: None , ..self }
+    }
+    
     
     pub fn get_text(&self) -> String {
         self.text.clone()

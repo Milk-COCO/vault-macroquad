@@ -90,6 +90,15 @@ macro_rules! impl_widget_option {
         }
 
         impl WidgetOption {
+            /// 转成 Any
+            
+            
+            pub fn into_any(self) -> Box<dyn std::any::Any> {
+                match self {
+                    $(Self::$variant(v) => Box::new(v)),*
+                }
+            }
+            
             /// 转成 &dyn Any
             pub fn as_any(&self) -> &dyn std::any::Any {
                 match self {
@@ -102,6 +111,11 @@ macro_rules! impl_widget_option {
                 match self {
                     $(Self::$variant(v) => v),*
                 }
+            }
+            
+            /// 下落到具体的组件类型
+            pub fn downcast<T:'static + Widown>(self) -> Result<T, Self>{
+                self.into_any().downcast::<T>().map(|v|*v).map_err(|v| match v.downcast() { Ok(v) => *v, Err(_) => unreachable!() })
             }
             
             /// 下落到具体的组件类型
