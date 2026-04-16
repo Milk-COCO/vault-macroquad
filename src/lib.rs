@@ -36,15 +36,12 @@
 //! }
 //!```
 
-use std::cell::RefCell;
 use miniquad::*;
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
-use std::ops::DerefMut;
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
-use std::sync::OnceLock;
 
 mod exec;
 mod quad_gl;
@@ -71,7 +68,6 @@ pub mod prelude;
 pub mod telemetry;
 
 mod error;
-pub mod ui;
 
 pub use error::Error;
 
@@ -156,7 +152,6 @@ use crate::{
 };
 
 use glam::{vec2, Mat4, Vec2};
-use crate::text::FontsStorage;
 
 pub(crate) mod thread_assert {
     static mut THREAD_ID: Option<std::thread::ThreadId> = None;
@@ -173,7 +168,7 @@ pub(crate) mod thread_assert {
                 static CURRENT_THREAD_ID: std::thread::ThreadId = std::thread::current().id();
             }
             assert!(THREAD_ID.is_some());
-            assert_eq!(THREAD_ID.unwrap(), CURRENT_THREAD_ID.with(|id| *id));
+            assert!(THREAD_ID.unwrap() == CURRENT_THREAD_ID.with(|id| *id));
         }
     }
 }
@@ -194,8 +189,6 @@ struct Context {
     touches: HashMap<u64, input::Touch>,
     chars_pressed_queue: Vec<char>,
     chars_pressed_ui_queue: Vec<char>,
-    ime_preedit_string: String,
-    ime_commit_string: Option<String>,
     mouse_position: Vec2,
     last_mouse_position: Option<Vec2>,
     mouse_wheel: Vec2,
@@ -210,8 +203,8 @@ struct Context {
     gl: QuadGl,
     camera_matrix: Option<Mat4>,
 
-    // ui_context: UiContext,
     coroutines_context: experimental::coroutines::CoroutinesContext,
+    fonts_storage: text::FontsStorage,
 
     pc_assets_folder: Option<String>,
 
@@ -262,12 +255,6 @@ enum MiniquadInputEvent {
         modifiers: KeyMods,
         repeat: bool,
     },
-    ImePreedit {
-        text: String,
-    },
-    ImeCommit {
-        text: Option<String>,
-    },
     KeyDown {
         keycode: KeyCode,
         modifiers: KeyMods,
@@ -300,8 +287,6 @@ impl MiniquadInputEvent {
                 modifiers,
                 repeat,
             } => t.char_event(*character, *modifiers, *repeat),
-            ImePreedit { text } => t.on_ime_preedit(text),
-            ImeCommit { text } => t.on_ime_commit(text.as_ref().map(|x| x.as_str())),
             KeyDown {
                 keycode,
                 modifiers,
@@ -327,9 +312,7 @@ impl Context {
         let mut ctx: Box<dyn miniquad::RenderingBackend> =
             miniquad::window::new_rendering_backend();
         let (screen_width, screen_height) = miniquad::window::screen_size();
-        
-        init_fonts();
-        
+
         Context {
             screen_width,
             screen_height,
@@ -345,8 +328,6 @@ impl Context {
             mouse_pressed: HashSet::new(),
             mouse_released: HashSet::new(),
             touches: HashMap::new(),
-            ime_preedit_string: String::new(),
-            ime_commit_string: None,
             mouse_position: vec2(0., 0.),
             last_mouse_position: None,
             mouse_wheel: vec2(0., 0.),
@@ -364,8 +345,8 @@ impl Context {
                 draw_call_vertex_capacity,
                 draw_call_index_capacity,
             ),
-            
-            // ui_context: UiContext::new(&mut *ctx, screen_width, screen_height),
+
+            fonts_storage: text::FontsStorage::new(&mut *ctx),
             texture_batcher: texture::Batcher::new(&mut *ctx),
             camera_stack: vec![],
 
@@ -416,8 +397,6 @@ impl Context {
     fn begin_frame(&mut self) {
         telemetry::begin_gpu_query("GPU");
 
-        // self.ui_context.process_input();
-
         let color = Self::DEFAULT_BG_COLOR;
 
         get_quad_context().clear(Some((color.r, color.g, color.b, color.a)), None, None);
@@ -429,7 +408,6 @@ impl Context {
 
         self.perform_render_passes();
 
-        // self.ui_context.draw(get_quad_context(), &mut self.gl);
         let screen_mat = self.pixel_perfect_projection_matrix();
         self.gl.draw(get_quad_context(), screen_mat);
 
@@ -471,8 +449,6 @@ impl Context {
         }
 
         self.dropped_files.clear();
-        self.ime_commit_string = None;
-        self.chars_pressed_queue.clear();
     }
 
     pub(crate) fn pixel_perfect_projection_matrix(&self) -> glam::Mat4 {
@@ -500,28 +476,6 @@ impl Context {
 
 #[no_mangle]
 static mut CONTEXT: Option<Context> = None;
-#[no_mangle]
-static mut FONTS: Option<FontsStorage> = None;
-
-pub fn init_fonts() {
-    let fonts = FontsStorage::new(miniquad::window::new_rendering_backend().deref_mut());
-    unsafe {
-        if FONTS.is_some() {
-            panic!("Called `init_fonts()` second time. To refresh fonts, call `reset_fonts()`")
-        }
-        FONTS = Some(fonts)
-    }
-}
-
-pub fn reset_fonts() {
-    let fonts = FontsStorage::new(miniquad::window::new_rendering_backend().deref_mut());
-    unsafe {
-        if FONTS.is_none() {
-            panic!("Called `reset_fonts()` before `init_fonts()`");
-        }
-        FONTS = Some(fonts);
-    }
-}
 
 // This is required for #[macroquad::test]
 //
@@ -690,8 +644,6 @@ impl EventHandler for Stage {
     fn char_event(&mut self, character: char, modifiers: KeyMods, repeat: bool) {
         let context = get_context();
 
-        if !context.ime_preedit_string.is_empty() {return;}
-        
         context.chars_pressed_queue.push(character);
         context.chars_pressed_ui_queue.push(character);
 
@@ -706,7 +658,6 @@ impl EventHandler for Stage {
 
     fn key_down_event(&mut self, keycode: KeyCode, modifiers: KeyMods, repeat: bool) {
         let context = get_context();
-        if !context.ime_preedit_string.is_empty() {return;}
         context.keys_down.insert(keycode);
         if repeat == false {
             context.keys_pressed.insert(keycode);
@@ -731,7 +682,6 @@ impl EventHandler for Stage {
 
     fn key_up_event(&mut self, keycode: KeyCode, modifiers: KeyMods) {
         let context = get_context();
-        if !context.ime_preedit_string.is_empty() {return;}
         context.keys_down.remove(&keycode);
         context.keys_released.insert(keycode);
 
@@ -873,34 +823,6 @@ impl EventHandler for Stage {
             context.quit_requested = true;
         }
     }
-    
-    fn on_ime_preedit(&mut self, text: &str) {
-        // info!("IME PREEDIT: {}", text);
-        let context = get_context();
-        
-        context.ime_preedit_string = text.to_string();
-        
-        context.input_events.iter_mut().for_each(|arr| {
-            arr.push(MiniquadInputEvent::ImePreedit {
-                text: text.to_string(),
-            });
-        });
-    }
-    
-    fn on_ime_commit(&mut self, text: Option<&str>) {
-        // info!("IME COMMIT: {:?}", text);
-        let context = get_context();
-        
-        context.ime_preedit_string.clear();
-        
-        context.ime_commit_string = text.map(|text| text.to_string());
-        
-        context.input_events.iter_mut().for_each(|arr| {
-            arr.push(MiniquadInputEvent::ImeCommit {
-                text: context.ime_commit_string.clone(),
-            });
-        });
-    }
 }
 
 pub mod conf {
@@ -991,7 +913,6 @@ impl Window {
         } = config.into();
         miniquad::start(miniquad_conf, move || {
             thread_assert::set_thread_id();
-            
             let context = Context::new(
                 update_on.unwrap_or_default(),
                 default_filter_mode,
