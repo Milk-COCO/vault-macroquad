@@ -26,10 +26,10 @@ impl Default for Button {
             width: 200.0,
             height: 50.0,
             text: "".to_string(),
-            text_color: GRAY,
+            text_color: WHITE,
             hovered_text_color: WHITE,
-            bg: GRAY,
-            fg: WHITE,
+            bg: DARKGRAY,
+            fg: GRAY,
             hover: false,
             click: false,
             font: None,
@@ -131,7 +131,7 @@ impl Widget for Button {
         let (x, y) = pos.into();
         let bg = if self.hover { self.fg } else { self.bg };
         let fg = if self.hover { self.bg } else { self.fg };
-        let text_color = if self.hover { self.text_color } else { self.hovered_text_color };
+        let text_color = if !self.hover { self.text_color } else { self.hovered_text_color };
 
         draw_rectangle((x, y), (self.width, self.height), bg);
         
