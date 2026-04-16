@@ -305,12 +305,14 @@ pub fn load_ttf_font_from_bytes(bytes: &[u8]) -> Result<Font, Error> {
 pub fn draw_text(
     text: impl AsRef<str>,
     pos: impl Into<(f32, f32)>,
+    center: impl Into<(f32, f32)>,
     font_size: f32,
     color: Color,
 ) -> TextDimensions {
     draw_text_ex(
         text,
         pos,
+        center,
         TextParams {
             font_size,
             font_scale: 1.0,
@@ -437,6 +439,7 @@ pub fn measure_text_ex(
 pub fn draw_text_ex(
     text: impl AsRef<str>,
     pos: impl Into<(f32, f32)>,
+    center: impl Into<(f32, f32)>,
     params: TextParams
 ) -> TextDimensions {
     let text = text.as_ref();
@@ -468,7 +471,7 @@ pub fn draw_text_ex(
         params.font_scale_aspect,
         params.color,
         pos,
-        (-1.,-1.)
+        center
     )
 }
 
@@ -556,6 +559,7 @@ pub(crate) fn draw_text_ex_in(
 pub fn draw_multiline_text(
     text: impl AsRef<str>,
     pos: impl Into<(f32,f32)>,
+    center: impl Into<(f32,f32)>,
     font_size: f32,
     line_distance_factor: Option<f32>,
     color: Color,
@@ -563,6 +567,7 @@ pub fn draw_multiline_text(
     draw_multiline_text_ex(
         text,
         pos,
+        center,
         line_distance_factor,
         TextParams {
             font_size,
@@ -578,6 +583,7 @@ pub fn draw_multiline_text(
 pub fn draw_multiline_text_ex(
     text: impl AsRef<str>,
     pos: impl Into<(f32,f32)>,
+    center: impl Into<(f32, f32)>,
     line_distance_factor: Option<f32>,
     params: TextParams,
 ) -> TextDimensions {
@@ -588,6 +594,7 @@ pub fn draw_multiline_text_ex(
     }
     
     let (mut x, mut y) = pos.into(); // 原始起点
+    let (center_x, center_y) = center.into(); // center相对坐标（左下角-1,-1）
     
     let font_arc = if let Some(font) = params.font {
         font
@@ -646,7 +653,7 @@ pub fn draw_multiline_text_ex(
             params.font_scale,
             params.font_scale_aspect,
             params.color,
-            positions[idx], (-1., -1.)
+            positions[idx], (center_x, center_y)
         );
     }
 

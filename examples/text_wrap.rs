@@ -19,6 +19,7 @@ async fn main() {
             &text,
             (20.0,
             20.0 + dimensions.offset_y),
+            TEXT_LB,
             font_size,
             Some(1.0),
             WHITE,

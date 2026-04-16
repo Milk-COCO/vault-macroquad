@@ -34,7 +34,7 @@ async fn main() {
 
         clear_background(LIGHTGRAY);
 
-        draw_text("Hello Letterbox", (20.0, 20.0), 30.0, DARKGRAY);
+        draw_text("Hello Letterbox", (20.0, 20.0), TEXT_LB, 30.0, DARKGRAY);
         draw_circle((VIRTUAL_WIDTH / 2.0 - 65.0, VIRTUAL_HEIGHT / 2.0), 35.0, RED);
         draw_circle((VIRTUAL_WIDTH / 2.0 + 65.0, VIRTUAL_HEIGHT / 2.0), 35.0, BLUE);
         draw_circle(

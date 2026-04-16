@@ -19,7 +19,7 @@ async fn main() {
         dir: (1, 0),
         body: LinkedList::new(),
     };
-    let mut fruit: Point = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
+    let mut fruit: Point = (quad_rand::gen_range(0, SQUARES), quad_rand::gen_range(0, SQUARES));
     let mut score = 0;
     let mut speed = 0.3;
     let mut last_update = get_time();
@@ -52,7 +52,7 @@ async fn main() {
                 snake.body.push_front(snake.head);
                 snake.head = (snake.head.0 + snake.dir.0, snake.head.1 + snake.dir.1);
                 if snake.head == fruit {
-                    fruit = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
+                    fruit = (quad_rand::gen_range(0, SQUARES), quad_rand::gen_range(0, SQUARES));
                     score += 100;
                     speed *= 0.9;
                 } else {
@@ -131,7 +131,7 @@ async fn main() {
                 GOLD,
             );
 
-            draw_text(format!("SCORE: {score}").as_str(), (10., 20.), 20., DARKGRAY);
+            draw_text(format!("SCORE: {score}").as_str(), (10., 20.), TEXT_LB, 20., DARKGRAY);
         } else {
             clear_background(WHITE);
             let text = "Game Over. Press [enter] to play again.";
@@ -142,6 +142,7 @@ async fn main() {
                 text,
                 (screen_width() / 2. - text_size.width / 2.,
                 screen_height() / 2. + text_size.height / 2.),
+                TEXT_LB,
                 font_size,
                 DARKGRAY,
             );
@@ -152,7 +153,7 @@ async fn main() {
                     dir: (1, 0),
                     body: LinkedList::new(),
                 };
-                fruit = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
+                fruit = (quad_rand::gen_range(0, SQUARES), quad_rand::gen_range(0, SQUARES));
                 score = 0;
                 speed = 0.3;
                 last_update = get_time();

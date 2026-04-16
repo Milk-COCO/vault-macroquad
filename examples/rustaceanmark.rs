@@ -20,13 +20,13 @@ async fn main() {
                 rustaceanes.push(Rustaceane {
                     pos: Vec2::from(macroquad::input::mouse_position()),
                     speed: Vec2::new(
-                        rand::gen_range(-250., 250.) / 60.,
-                        rand::gen_range(-250., 250.) / 60.,
+                        quad_rand::gen_range(-250., 250.) / 60.,
+                        quad_rand::gen_range(-250., 250.) / 60.,
                     ),
                     color: Color::from_rgba(
-                        rand::gen_range(50, 240),
-                        rand::gen_range(80, 240),
-                        rand::gen_range(100, 240),
+                        quad_rand::gen_range(50, 240),
+                        quad_rand::gen_range(80, 240),
+                        quad_rand::gen_range(100, 240),
                         255,
                     ),
                 })
@@ -60,6 +60,7 @@ async fn main() {
             format!("Rustaceanes: {}", rustaceanes.len()).as_str(),
             (0.,
             32.),
+            TEXT_LB,
             32.,
             WHITE,
         );

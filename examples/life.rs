@@ -17,7 +17,7 @@ async fn main() {
     let mut image = Image::gen_image_color(w as u16, h as u16, WHITE);
 
     for cell in cells.iter_mut() {
-        if rand::gen_range(0, 5) == 0 {
+        if quad_rand::gen_range(0, 5) == 0 {
             *cell = CellState::Alive;
         }
     }
