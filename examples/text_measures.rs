@@ -3,7 +3,7 @@ use std::rc::Rc;
 use macroquad::prelude::*;
 
 fn draw_text_annotated(text: &str, font: Option<Rc<RefCell<Font>>>, x: f32, baseline: f32) {
-    let size = measure_text(text, font.clone(), 100, 1.0);
+    let size = measure_text(text, font.clone(), 100., 1.0);
 
     // Full background rect
     draw_rectangle(x, baseline - size.offset_y, size.width, size.height, BLUE);
@@ -70,7 +70,7 @@ fn draw_text_annotated(text: &str, font: Option<Rc<RefCell<Font>>>, x: f32, base
         x,
         baseline,
         TextParams {
-            font_size: 100,
+            font_size: 100.,
             font,
             ..Default::default()
         },
