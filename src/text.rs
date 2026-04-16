@@ -823,9 +823,9 @@ pub fn get_default_font() -> Rc<RefCell<Font>> {
 }
 
 /// Replaces macroquads default font with `font`.
-pub fn set_default_font(font: Font) {
+pub fn set_default_font(font: Rc<RefCell<Font>>) {
     let context = get_context();
-    context.fonts_storage.default_font = Rc::new(RefCell::new((font)));
+    context.fonts_storage.default_font = font;
 }
 
 /// From given font size in world space gives
