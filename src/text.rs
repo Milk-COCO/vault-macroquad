@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::iter::{once};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use crate::{color::Color, get_context, get_quad_context, math::{vec3, Rect}, texture::{Image, TextureHandle}, Error, FONTS};
+use crate::{color::Color, get_context, get_quad_context, math::{vec3, Rect}, texture::{Image, TextureHandle}, Error};
 
 use crate::color::WHITE;
 use glam::vec2;
@@ -140,20 +140,20 @@ impl Font {
         }
     }
     
-    pub(crate) fn cache_glyph(&self, char: char, size: f32) {
+    pub(crate) fn cache_glyph(&self, char: char, size: u16) {
         Self::cache_glyph_many(
             self.font.deref(),
             self.atlas.borrow_mut().deref_mut(),
             self.characters.borrow_mut().deref_mut(),
             once(char),
-            size
+            size as f32
         );
     }
 
     pub(crate) fn measure_text(
         &self,
         text: impl AsRef<str>,
-        font_size: f32,
+        font_size: u16,
         font_scale_x: f32,
         font_scale_y: f32,
         mut glyph_callback: impl FnMut(f32),
@@ -161,7 +161,7 @@ impl Font {
         let text = text.as_ref();
 
         let dpi_scaling = miniquad::window::dpi_scale();
-        let font_size = font_size * dpi_scaling;
+        let font_size = (font_size as f32 * dpi_scaling).ceil() as u16;
 
         let mut width = 0.0;
         let mut min_y = f32::MAX;
@@ -170,7 +170,7 @@ impl Font {
         for character in text.chars() {
             self.cache_glyph(character, font_size);
 
-            let font_data = &self.characters.borrow_mut()[&(character, font_size.round() as u16)];
+            let font_data = &self.characters.borrow_mut()[&(character, font_size)];
             let offset_y = font_data.offset_y as f32 * font_scale_y;
 
             let atlas = self.atlas.borrow_mut();
@@ -208,7 +208,7 @@ impl Font {
             .collect()
     }
 
-    pub fn populate_font_cache(&self, characters: &[char], size: f32) {
+    pub fn populate_font_cache(&self, characters: &[char], size: u16) {
         for character in characters {
             self.cache_glyph(*character, size);
         }
@@ -243,7 +243,7 @@ impl Font {
 pub struct TextParams {
     pub font: Option<Rc<RefCell<Font>>>,
     /// Base size for character height. The size in pixel used during font rasterizing.
-    pub font_size: f32,
+    pub font_size: u16,
     /// The glyphs sizes actually drawn on the screen will be font_size * font_scale
     /// However with font_scale too different from 1.0 letters may be blurry
     pub font_scale: f32,
@@ -261,7 +261,7 @@ impl<'a> Default for TextParams {
     fn default() -> TextParams {
         TextParams {
             font: None,
-            font_size: 20.,
+            font_size: 20,
             font_scale: 1.0,
             font_scale_aspect: 1.0,
             color: WHITE,
@@ -291,7 +291,7 @@ pub fn load_ttf_font_from_bytes(bytes: &[u8]) -> Result<Font, Error> {
 
     let mut font = Font::load_from_bytes(atlas.clone(), bytes)?;
 
-    font.populate_font_cache(&Font::ascii_character_list(), 15.);
+    font.populate_font_cache(&Font::ascii_character_list(), 15);
 
     let ctx = get_context();
 
@@ -304,17 +304,17 @@ pub fn load_ttf_font_from_bytes(bytes: &[u8]) -> Result<Font, Error> {
 /// Returns text size
 pub fn draw_text(
     text: impl AsRef<str>,
-    pos: impl Into<(f32, f32)>,
-    center: impl Into<(f32, f32)>,
+    x: f32,
+    y: f32,
     font_size: f32,
     color: Color,
 ) -> TextDimensions {
     draw_text_ex(
         text,
-        pos,
-        center,
+        x,
+        y,
         TextParams {
-            font_size,
+            font_size: font_size as u16,
             font_scale: 1.0,
             color,
             ..Default::default()
@@ -438,8 +438,8 @@ pub fn measure_text_ex(
 /// 其中 `center` 决定中心在贴图的何位置。为相对坐标。左下角为 (-1.0,-1.0)
 pub fn draw_text_ex(
     text: impl AsRef<str>,
-    pos: impl Into<(f32, f32)>,
-    center: impl Into<(f32, f32)>,
+    x: f32,
+    y: f32,
     params: TextParams
 ) -> TextDimensions {
     let text = text.as_ref();
@@ -466,12 +466,12 @@ pub fn draw_text_ex(
         atlas,
         characters,
         params.rotation,
-        params.font_size,
+        params.font_size as f32,
         params.font_scale,
         params.font_scale_aspect,
         params.color,
-        pos,
-        center
+        (x,y),
+        (-1.,-1.)
     )
 }
 
@@ -535,7 +535,7 @@ pub(crate) fn draw_text_ex_in(
             &crate::texture::Texture2D {
                 texture: TextureHandle::Unmanaged(atlas.texture()),
             },
-            new_center,
+            x + dest.x,  y + dest.y,
             color,
             crate::texture::DrawTextureParams {
                 dest_size: Some(vec2(dest.w, dest.h)),
@@ -558,19 +558,19 @@ pub(crate) fn draw_text_ex_in(
 /// If no line distance but a custom font is given, the fonts line gap will be used as line distance factor if it exists.
 pub fn draw_multiline_text(
     text: impl AsRef<str>,
-    pos: impl Into<(f32,f32)>,
-    center: impl Into<(f32,f32)>,
+    x: f32,
+    y: f32,
     font_size: f32,
     line_distance_factor: Option<f32>,
     color: Color,
 ) -> TextDimensions {
     draw_multiline_text_ex(
         text,
-        pos,
-        center,
+        x,
+        y,
         line_distance_factor,
         TextParams {
-            font_size,
+            font_size: font_size as u16,
             font_scale: 1.0,
             color,
             ..Default::default()
@@ -582,8 +582,8 @@ pub fn draw_multiline_text(
 /// If no line distance but a custom font is given, the fonts newline size will be used as line distance factor if it exists, else default to font size.
 pub fn draw_multiline_text_ex(
     text: impl AsRef<str>,
-    pos: impl Into<(f32,f32)>,
-    center: impl Into<(f32, f32)>,
+    mut x: f32,
+    mut y: f32,
     line_distance_factor: Option<f32>,
     params: TextParams,
 ) -> TextDimensions {
@@ -592,9 +592,6 @@ pub fn draw_multiline_text_ex(
     if text.is_empty() {
         return TextDimensions::default();
     }
-    
-    let (mut x, mut y) = pos.into(); // 原始起点
-    let (center_x, center_y) = center.into(); // center相对坐标（左下角-1,-1）
     
     let font_arc = if let Some(font) = params.font {
         font
@@ -618,12 +615,12 @@ pub fn draw_multiline_text_ex(
     };
 
     let mut dimensions = TextDimensions::default();
-    let y_step = line_distance * params.font_size  * params.font_scale;
+    let y_step = line_distance * params.font_size as f32 * params.font_scale;
 
     let mut positions: Vec<(f32,f32)> = vec![];
     
-    let dx = (line_distance * params.font_size * params.font_scale) * params.rotation.sin();
-    let dy = (line_distance * params.font_size * params.font_scale) * params.rotation.cos();
+    let dx = (line_distance * params.font_size as f32 * params.font_scale) * params.rotation.sin();
+    let dy = (line_distance * params.font_size as f32 * params.font_scale) * params.rotation.cos();
     
     let mut atlas_guard = font.atlas.borrow_mut();
     let mut chars_guard = font.characters.borrow_mut();
@@ -634,7 +631,7 @@ pub fn draw_multiline_text_ex(
         x -= dx;
         y += dy;
         
-        let line_dimensions = measure_text_ex_in(line, font, atlas, characters, params.rotation, params.font_size, params.font_scale, params.font_scale_aspect);
+        let line_dimensions = measure_text_ex_in(line, font, atlas, characters, params.rotation, params.font_size as f32, params.font_scale, params.font_scale_aspect);
         
         dimensions.width = f32::max(dimensions.width, line_dimensions.width);
         dimensions.height += y_step;
@@ -649,11 +646,11 @@ pub fn draw_multiline_text_ex(
             line,
             font, atlas, characters,
             params.rotation,
-            params.font_size,
+            params.font_size as f32,
             params.font_scale,
             params.font_scale_aspect,
             params.color,
-            positions[idx], (center_x, center_y)
+            positions[idx], (-1., -1.)
         );
     }
 
@@ -664,7 +661,7 @@ pub fn draw_multiline_text_ex(
 pub fn get_text_center(
     text: impl AsRef<str>,
     font: Option<Rc<RefCell<Font>>>,
-    font_size: f32,
+    font_size: u16,
     font_scale: f32,
     rotation: f32,
 ) -> crate::Vec2 {
@@ -679,7 +676,7 @@ pub fn get_text_center(
 pub fn measure_text(
     text: impl AsRef<str>,
     font: Option<Rc<RefCell<Font>>>,
-    font_size: f32,
+    font_size: u16,
     font_scale: f32,
 ) -> TextDimensions {
     let font_arc = font.unwrap_or_else(|| get_default_font().clone());
@@ -691,7 +688,7 @@ pub fn measure_text(
 pub fn measure_multiline_text(
     text: &str,
     font: Option<Rc<RefCell<Font>>>,
-    font_size: f32,
+    font_size: u16,
     font_scale: f32,
     line_distance_factor: Option<f32>,
 ) -> TextDimensions {
@@ -707,7 +704,7 @@ pub fn measure_multiline_text(
     };
 
     let mut dimensions = TextDimensions::default();
-    let y_step = line_distance * font_size * font_scale;
+    let y_step = line_distance * font_size as f32 * font_scale;
 
     for line in text.lines() {
         let line_dimensions = font.measure_text(line, font_size, font_scale, font_scale, |_| {});
@@ -726,7 +723,7 @@ pub fn measure_multiline_text(
 pub fn wrap_text(
     text: &str,
     font: Option<Rc<RefCell<Font>>>,
-    font_size: f32,
+    font_size: u16,
     font_scale: f32,
     maximum_line_length: f32,
 ) -> String {
@@ -818,18 +815,20 @@ impl FontsStorage {
 
 /// Returns macroquads default font.
 pub fn get_default_font() -> Rc<RefCell<Font>> {
-    unsafe { FONTS.as_ref().unwrap().get_default_font() }
+    let context = get_context();
+    context.fonts_storage.default_font.clone()
 }
 
 /// Replaces macroquads default font with `font`.
-pub fn set_default_font(font: Rc<RefCell<Font>>) {
-    unsafe { FONTS.as_mut().unwrap().set_default_font(font); }
+pub fn set_default_font(font: Font) {
+    let context = get_context();
+    context.fonts_storage.default_font = Rc::new(RefCell::new((font)));
 }
 
 /// From given font size in world space gives
 /// (font_size, font_scale and font_aspect) params to make rasterized font
 /// looks good in currently active camera
-pub fn camera_font_scale(world_font_size: f32) -> (f32, f32, f32) {
+pub fn camera_font_scale(world_font_size: f32) -> (u16, f32, f32) {
     let context = get_context();
     let (scr_w, scr_h) = miniquad::window::screen_size();
     let cam_space = context
@@ -840,7 +839,7 @@ pub fn camera_font_scale(world_font_size: f32) -> (f32, f32, f32) {
 
     let screen_font_size = world_font_size * scr_h / cam_h;
 
-    let font_size = screen_font_size;
+    let font_size = screen_font_size as u16;
 
     (font_size, cam_h / scr_h, scr_h / scr_w * cam_w / cam_h)
 }
