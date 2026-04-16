@@ -62,6 +62,11 @@ impl Button {
         Self { height, ..self }
     }
     
+    pub fn with_size(self, size: impl Into<(f32,f32)>) -> Self {
+        let (width, height) = size.into();
+        Self { width, height, ..self }
+    }
+    
     pub fn with_text(self, text: String) -> Self {
         Self { text, ..self }
     }
@@ -86,8 +91,70 @@ impl Button {
         Self { font: Some(font), ..self }
     }
     
+    pub fn with_option_font(self, font: Option<Rc<RefCell<Font>>>) -> Self {
+        Self { font, ..self }
+    }
+    
     pub fn without_font(self) -> Self {
         Self { font: None , ..self }
+    }
+    
+    
+    pub fn width(&mut self, width: f32) -> &mut Self {
+        self.width = width;
+        self
+    }
+    
+    pub fn height(&mut self, height: f32) -> &mut Self {
+        self.height = height;
+        self
+    }
+    
+    pub fn size(&mut self, size: impl Into<(f32,f32)>) -> &mut Self {
+        let (width, height) = size.into();
+        self.width = width;
+        self.height = height;
+        self
+    }
+    
+    pub fn text(&mut self, text: String) -> &mut Self {
+        self.text = text;
+        self
+    }
+    
+    pub fn text_color(&mut self, text_color: Color) -> &mut Self {
+        self.text_color = text_color;
+        self
+    }
+    
+    pub fn hovered_text_color(&mut self, hovered_text_color: Color) -> &mut Self {
+        self.hovered_text_color = hovered_text_color;
+        self
+    }
+    
+    pub fn bg(&mut self, bg: Color) -> &mut Self {
+        self.bg = bg;
+        self
+    }
+    
+    pub fn fg(&mut self, fg: Color) -> &mut Self {
+        self.fg = fg;
+        self
+    }
+    
+    pub fn font(&mut self, font: Rc<RefCell<Font>>) -> &mut Self {
+        self.font = Some(font);
+        self
+    }
+    
+    pub fn non_font(&mut self) -> &mut Self {
+        self.font = None;
+        self
+    }
+    
+    pub fn set_font(&mut self, font: Option<Rc<RefCell<Font>>>) -> &mut Self {
+        self.font = font;
+        self
     }
     
     
