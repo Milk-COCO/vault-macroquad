@@ -13,6 +13,7 @@ pub use crate::time::*;
 pub use crate::window::*;
 pub use crate::ui::*;
 pub use crate::ui::widgets::*;
+pub use crate::scene::*;
 
 pub use crate::color::{colors::*, Color};
 pub use crate::quad_gl::{DrawMode, GlPipeline, QuadGl};

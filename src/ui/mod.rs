@@ -8,15 +8,13 @@ use crate::prelude::*;
 
 pub mod widgets;
 
-// ============ 全局 UiBox 管理 ============
-
 static mut UI_BOX: Option<UiBox> = None;
 
 pub fn init_box() {
     let ui = UiBox::new();
     unsafe {
         if UI_BOX.is_some() {
-            panic!("Called `init_box()` second time. To refresh box, call `reset_box()`")
+            panic!("Called `init_box()` second time. To reset box, call `reset_box()`")
         }
         UI_BOX = Some(ui);
     }
@@ -40,8 +38,6 @@ pub fn ui_box() -> &'static mut UiBox {
         UI_BOX.as_mut().unwrap()
     }
 }
-
-// ============ 辅助类型 ============
 
 #[derive(derive_more::Deref, derive_more::DerefMut)]
 pub struct GetWidgetOption<T>(Option<T>);

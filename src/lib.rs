@@ -68,6 +68,7 @@ pub mod telemetry;
 
 mod error;
 pub mod ui;
+pub mod scene;
 
 pub use error::Error;
 
