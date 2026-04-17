@@ -36,6 +36,7 @@ async fn main() {
             TextParams {
                 font_size: get_time().cos() as f32 * 20. + 50.0,
                 font_scale: 1.0,
+                font: Some(font.clone()),
                 ..Default::default()
             },
         );

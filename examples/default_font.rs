@@ -4,7 +4,8 @@ use macroquad::prelude::*;
 async fn main() {
     let font = load_ttf_font("./examples/DancingScriptRegular.ttf")
         .await
-        .unwrap();
+        .unwrap()
+        .shared();
     set_default_font(font);
 
     loop {

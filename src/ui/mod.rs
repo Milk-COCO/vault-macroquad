@@ -54,7 +54,7 @@ impl<T> GetWidgetOption<T> {
 
 macro_rules! widget_not_exist {
     ($ty:ty,$id:expr) => {
-        panic!("Try to get a `{}` with id {}, but is does not exist.", stringify!($ty), $id)
+        panic!("Try to get a `{}` with id {:?}, but is does not exist.", stringify!($ty), $id)
     };
 }
 
@@ -299,7 +299,7 @@ macro_rules! impl_hash_option {
         /// 通用哈希选项枚举
         ///
         /// 支持 `Any` 下转 + `Hash` + `Eq`，用于 HashMap key
-        #[derive(Eq, PartialEq, Clone, Debug, derive_more::Display)]
+        #[derive(Eq, PartialEq, Clone, Debug)]
         pub enum HashOption {
             $($variant($ty)),*
         }
@@ -375,7 +375,6 @@ macro_rules! impl_hash_option {
     };
 }
 
-// 注册支持的 ID 类型
 impl_hash_option!(
     String => String,
     u8 => U8,
