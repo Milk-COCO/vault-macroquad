@@ -69,6 +69,7 @@ pub mod telemetry;
 mod error;
 pub mod ui;
 pub mod scene;
+pub mod measure;
 
 pub use error::Error;
 
@@ -176,6 +177,8 @@ pub(crate) mod thread_assert {
 struct Context {
     screen_width: f32,
     screen_height: f32,
+    
+    measure_ratio: Option<f64>,
 
     simulate_mouse_with_touch: bool,
 
@@ -325,7 +328,9 @@ impl Context {
         Context {
             screen_width,
             screen_height,
-
+            
+            measure_ratio: None,
+            
             simulate_mouse_with_touch: true,
 
             keys_down: HashSet::new(),
