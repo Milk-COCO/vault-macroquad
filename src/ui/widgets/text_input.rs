@@ -12,12 +12,12 @@ use crate::get_context;
 /// 文本选择范围
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Selection {
-    start: u32,
-    end: u32,
+    start: usize,
+    end: usize,
 }
 
 impl Selection {
-    fn new(pos: u32) -> Self {
+    fn new(pos: usize) -> Self {
         Self { start: pos, end: pos }
     }
     
@@ -25,11 +25,11 @@ impl Selection {
         self.start == self.end
     }
     
-    fn min(&self) -> u32 {
+    fn min(&self) -> usize {
         self.start.min(self.end)
     }
     
-    fn max(&self) -> u32 {
+    fn max(&self) -> usize {
         self.start.max(self.end)
     }
 }
@@ -92,8 +92,8 @@ impl KeyRepeatState {
 /// The [`TextInput`] widget that allows the user to enter text.
 pub struct TextInput {
     text: String,
-    cursor_pos: u32,
-    selection: Option<Selection>,
+    cursor_pos: usize,
+    selection: Selection,
     
     text_color: Color,
     hovered_text_color: Color,
@@ -144,14 +144,14 @@ impl TextInput {
             Some((1.0, 1.0, 1.0, 1.0)),
             None
         );
-        menu_container.add_child(Button::new(75.0, 28.0, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
-        menu_container.add_child(Button::new(75.0, 28.0, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
-        menu_container.add_child(Button::new(75.0, 28.0, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
         
         Self {
             text: String::new(),
             cursor_pos: 0,
-            selection: None,
+            selection: Selection::new(0),
             
             text_color,
             hovered_text_color,
@@ -208,7 +208,7 @@ impl TextInput {
         if let Some(max) = self.max_length {
             let chars: Vec<char> = self.text.chars().take(max).collect();
             self.text = chars.into_iter().collect();
-            self.cursor_pos = self.cursor_pos.min(self.text.chars().count() as u32);
+            self.cursor_pos = self.cursor_pos.min(self.text.chars().count());
         }
         self
     }
@@ -220,9 +220,9 @@ impl TextInput {
         let new_text = text.into();
         self.text = new_text;
         
-        let count = self.text.chars().count() as u32;
+        let count = self.text.chars().count();
         self.cursor_pos = self.cursor_pos.min(count);
-        self.selection = None;
+        self.selection = Selection::new(0);
     }
     
     pub fn clear(&mut self) {
@@ -245,20 +245,20 @@ impl TextInput {
         }
     }
     
-    fn find_word_boundary(&self, mut pos: u32, forward: bool) -> u32 {
+    fn find_word_boundary(&self, mut pos: usize, forward: bool) -> usize {
         let chars: Vec<char> = self.text.chars().collect();
         if forward {
-            while pos < chars.len() as u32 && chars[pos as usize].is_alphanumeric() {
+            while pos < chars.len() && chars[pos].is_alphanumeric() {
                 pos += 1;
             }
-            while pos < chars.len() as u32 && !chars[pos as usize].is_alphanumeric() {
+            while pos < chars.len() && !chars[pos].is_alphanumeric() {
                 pos += 1;
             }
         } else {
-            while pos > 0 && !chars[(pos - 1) as usize].is_alphanumeric() {
+            while pos > 0 && !chars[(pos - 1)].is_alphanumeric() {
                 pos -= 1;
             }
-            while pos > 0 && chars[(pos - 1) as usize].is_alphanumeric() {
+            while pos > 0 && chars[(pos - 1)].is_alphanumeric() {
                 pos -= 1;
             }
         }
@@ -306,10 +306,11 @@ impl TextInput {
     }
     
     fn delete_selection(&mut self) {
-        if let Some(sel) = self.selection {
+        let sel = self.selection;
+        {
             if !sel.is_empty() {
-                let start_char = sel.min() as usize;
-                let end_char = sel.max() as usize;
+                let start_char = sel.min();
+                let end_char = sel.max();
                 let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
                 let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
                 
@@ -317,7 +318,7 @@ impl TextInput {
                 new_text.push_str(&self.text[..start_byte]);
                 new_text.push_str(&self.text[end_byte..]);
                 self.set_text(new_text);
-                self.cursor_pos = start_char as u32;
+                self.cursor_pos = start_char;
             }
         }
     }
@@ -326,7 +327,7 @@ impl TextInput {
         self.delete_selection();
         let len = text.len();
         if len == 0 { return; }
-        let old_cursor_char = self.cursor_pos as usize;
+        let old_cursor_char = self.cursor_pos;
         let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
         
         let mut new_text = String::with_capacity(self.text.len() + len);
@@ -335,7 +336,7 @@ impl TextInput {
         new_text.push_str(&self.text[old_cursor_byte..]);
         
         self.set_text(new_text);
-        self.cursor_pos = (old_cursor_char + text.chars().count()) as u32;
+        self.cursor_pos = (old_cursor_char + text.chars().count());
         self.cursor_visible = true;
         self.cursor_blink_timer = 0.0;
     }
@@ -415,22 +416,28 @@ impl Widget for TextInput {
                 
                 if let Some(cut_btn) = self.context_menu_container.get_child_as::<Button>(0) {
                     if cut_btn.is_clicked() {
-                        if let Some(sel) = self.selection {
-                            if !sel.is_empty() {
-                                let start_char = sel.min() as usize;
-                                let end_char = sel.max() as usize;
-                                let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
-                                let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
-                                let selected_text = &self.text[start_byte..end_byte];
-                                if let Ok(mut clipboard) = Clipboard::new() {
-                                    clipboard.set_text(selected_text).ok();
-                                }
-                                let mut new_text = String::new();
-                                new_text.push_str(&self.text[..start_byte]);
-                                new_text.push_str(&self.text[end_byte..]);
-                                self.set_text(new_text);
-                                self.cursor_pos = start_char as u32;
+                        let sel = self.selection;
+                        {
+                            let (sb,eb) = if !sel.is_empty() {
+                                let s = sel.min();
+                                let e = sel.max();
+                                (self.char_idx_to_byte_idx(&self.text, s), self.char_idx_to_byte_idx(&self.text, e))
+                            } else {
+                                (0,self.text.len())
+                            };
+                            let selected_text = &self.text[sb..eb];
+                            if let Ok(mut clipboard) = Clipboard::new() {
+                                clipboard.set_text(selected_text).ok();
                             }
+                            let mut new_text = String::new();
+                            new_text.push_str(&self.text[..sb]);
+                            new_text.push_str(&self.text[eb..]);
+                            self.set_text(new_text);
+                            self.cursor_pos = if !sel.is_empty() {
+                                sel.min()
+                            } else {
+                                0
+                            };
                         }
                         self.context_menu_open = false;
                         self.long_press_start = None;
@@ -440,17 +447,17 @@ impl Widget for TextInput {
                 
                 if let Some(copy_btn) = self.context_menu_container.get_child_as::<Button>(1) {
                     if copy_btn.is_clicked() {
-                        if let Some(sel) = self.selection {
-                            if !sel.is_empty() {
-                                let start_char = sel.min() as usize;
-                                let end_char = sel.max() as usize;
-                                let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
-                                let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
-                                let selected_text = &self.text[start_byte..end_byte];
-                                if let Ok(mut clipboard) = Clipboard::new() {
-                                    clipboard.set_text(selected_text).ok();
-                                }
-                            }
+                        let sel = self.selection;
+                        {
+                            let (sb,eb) = if !sel.is_empty() {
+                                let s = sel.min();
+                                let e = sel.max();
+                                (self.char_idx_to_byte_idx(&self.text, s), self.char_idx_to_byte_idx(&self.text, e))
+                            } else {
+                                (0,self.text.len())
+                            };
+                            let t = &self.text[sb..eb];
+                            if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
                         }
                         self.context_menu_open = false;
                         self.long_press_start = None;
@@ -463,14 +470,14 @@ impl Widget for TextInput {
                         if let Ok(mut clipboard) = Clipboard::new() {
                             if let Ok(paste_text) = clipboard.get_text() {
                                 self.delete_selection();
-                                let old_cursor_char = self.cursor_pos as usize;
+                                let old_cursor_char = self.cursor_pos;
                                 let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
                                 let mut new_text = String::new();
                                 new_text.push_str(&self.text[..old_cursor_byte]);
                                 new_text.push_str(&paste_text);
                                 new_text.push_str(&self.text[old_cursor_byte..]);
                                 self.set_text(new_text);
-                                self.cursor_pos = (old_cursor_char + paste_text.chars().count()) as u32;
+                                self.cursor_pos = (old_cursor_char + paste_text.chars().count());
                             }
                         }
                         self.context_menu_open = false;
@@ -530,7 +537,7 @@ impl Widget for TextInput {
                 
                 let mut scroll = 0.0;
                 if total_w > avail {
-                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
                 }
                 
@@ -546,8 +553,8 @@ impl Widget for TextInput {
                     new_pos = i + 1;
                 }
                 
-                self.cursor_pos = new_pos as u32;
-                self.selection = Some(Selection::new(self.cursor_pos));
+                self.cursor_pos = new_pos;
+                self.selection = Selection::new(self.cursor_pos);
             }
             
             let mut long_trigger = false;
@@ -573,7 +580,7 @@ impl Widget for TextInput {
                 let total_w = self.text_width(&display_text);
                 let mut scroll = 0.0;
                 if total_w > avail {
-                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
                 }
                 
@@ -589,14 +596,14 @@ impl Widget for TextInput {
                     new_pos = i + 1;
                 }
                 
-                self.cursor_pos = new_pos as u32;
+                self.cursor_pos = new_pos;
                 
                 if double {
                     let s = self.find_word_boundary(self.cursor_pos, false);
                     let e = self.find_word_boundary(self.cursor_pos, true);
-                    self.selection = Some(Selection { start: s, end: e });
+                    self.selection = Selection { start: s, end: e };
                 } else {
-                    self.selection = Some(Selection::new(self.cursor_pos));
+                    self.selection = Selection::new(self.cursor_pos);
                 }
                 
                 self.cursor_visible = true;
@@ -610,7 +617,7 @@ impl Widget for TextInput {
                 let total_w = self.text_width(&display_text);
                 let mut scroll = 0.0;
                 if total_w > avail {
-                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
                 }
                 
@@ -626,10 +633,8 @@ impl Widget for TextInput {
                     pos = i + 1;
                 }
                 
-                if let Some(ref mut sel) = self.selection {
-                    sel.end = pos as u32;
-                }
-                self.cursor_pos = pos as u32;
+                self.selection.end = pos;
+                self.cursor_pos = pos;
             } else if !mouse_down {
                 self.is_dragging = false;
             }
@@ -637,14 +642,14 @@ impl Widget for TextInput {
             if clicked && !self.hover {
                 self.selected = false;
                 self.is_dragging = false;
-                self.selection = None;
+                self.selection = Selection::new(0);
                 self.long_press_start = None;
                 window::set_ime_enabled(false);
             }
             
             if self.selected && is_key_pressed(KeyCode::Escape) {
                 self.selected = false;
-                self.selection = None;
+                self.selection = Selection::new(0);
                 window::set_ime_enabled(false);
             }
             
@@ -662,11 +667,11 @@ impl Widget for TextInput {
                 let total_width = self.text_width(&display_text);
                 let mut scroll_offset = 0.0;
                 if total_width > available_width {
-                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                    let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll_offset = (cursor_w - available_width * 0.5).max(0.0).min(total_width - available_width);
                 }
                 
-                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+                let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                 let (win_x, win_y) = window::get_window_position();
                 let cx = win_x as f32 + x + 4.0 + cursor_w - scroll_offset;
                 let cy = win_y as f32 + y + self.height * 0.5 - 8.0;
@@ -683,16 +688,17 @@ impl Widget for TextInput {
                         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
                         
                         if ctrl && is_key_pressed(KeyCode::A) {
-                            self.selection = Some(Selection { start: 0, end: self.text.chars().count() as u32 });
-                            self.cursor_pos = self.text.chars().count() as u32;
+                            self.selection = Selection { start: 0, end: self.text.chars().count() };
+                            self.cursor_pos = self.text.chars().count();
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
                         if ctrl && is_key_pressed(KeyCode::X) {
-                            if let Some(sel) = self.selection {
+                            let sel = self.selection;
+                            {
                                 if !sel.is_empty() {
-                                    let s = sel.min() as usize;
-                                    let e = sel.max() as usize;
+                                    let s = sel.min();
+                                    let e = sel.max();
                                     let sb = self.char_idx_to_byte_idx(&self.text, s);
                                     let eb = self.char_idx_to_byte_idx(&self.text, e);
                                     let t = &self.text[sb..eb];
@@ -701,15 +707,16 @@ impl Widget for TextInput {
                                     nt.push_str(&self.text[..sb]);
                                     nt.push_str(&self.text[eb..]);
                                     self.set_text(nt);
-                                    self.cursor_pos = s as u32;
+                                    self.cursor_pos = s;
                                 }
                             }
                         }
                         if ctrl && is_key_pressed(KeyCode::C) {
-                            if let Some(sel) = self.selection {
+                            let sel = self.selection;
+                            {
                                 if !sel.is_empty() {
-                                    let s = sel.min() as usize;
-                                    let e = sel.max() as usize;
+                                    let s = sel.min();
+                                    let e = sel.max();
                                     let sb = self.char_idx_to_byte_idx(&self.text, s);
                                     let eb = self.char_idx_to_byte_idx(&self.text, e);
                                     let t = &self.text[sb..eb];
@@ -721,14 +728,14 @@ impl Widget for TextInput {
                             if let Ok(mut cb) = Clipboard::new() {
                                 if let Ok(pt) = cb.get_text() {
                                     self.delete_selection();
-                                    let oc = self.cursor_pos as usize;
+                                    let oc = self.cursor_pos;
                                     let ob = self.char_idx_to_byte_idx(&self.text, oc);
                                     let mut nt = String::new();
                                     nt.push_str(&self.text[..ob]);
                                     nt.push_str(&pt);
                                     nt.push_str(&self.text[ob..]);
                                     self.set_text(nt);
-                                    self.cursor_pos = (oc + pt.chars().count()) as u32;
+                                    self.cursor_pos = (oc + pt.chars().count());
                                 }
                             }
                         }
@@ -739,39 +746,39 @@ impl Widget for TextInput {
                             } else {
                                 self.cursor_pos = self.cursor_pos.saturating_sub(1);
                             }
-                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos + 1, end: self.cursor_pos }); }
+                            if !shift { self.selection = Selection::new(0); } else { self.selection = Selection { start: self.cursor_pos + 1, end: self.cursor_pos }; }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
                         if self.key_right.update(is_key_down(KeyCode::Right)) {
-                            let cnt = self.text.chars().count() as u32;
+                            let cnt = self.text.chars().count();
                             if ctrl {
                                 self.cursor_pos = self.find_word_boundary(self.cursor_pos, true);
                             } else {
                                 self.cursor_pos = (self.cursor_pos + 1).min(cnt);
                             }
-                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = self.cursor_pos; } else { self.selection = Some(Selection { start: self.cursor_pos - 1, end: self.cursor_pos }); }
+                            if !shift { self.selection = Selection::new(0); } else { self.selection = Selection { start: self.cursor_pos - 1, end: self.cursor_pos }; }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
                         
                         if is_key_pressed(KeyCode::Home) {
                             self.cursor_pos = 0;
-                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = 0; }
+                            if !shift { self.selection = Selection::new(0); } else { self.selection.end = 0; }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
                         if is_key_pressed(KeyCode::End) {
-                            let cnt = self.text.chars().count() as u32;
+                            let cnt = self.text.chars().count();
                             self.cursor_pos = cnt;
-                            if !shift { self.selection = None; } else if let Some(ref mut s) = self.selection { s.end = cnt; }
+                            if !shift { self.selection = Selection::new(0); } else { self.selection.end = cnt; }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
                         
                         if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
                             self.delete_selection();
-                            let oc = self.cursor_pos as usize;
+                            let oc = self.cursor_pos;
                             if oc > 0 {
                                 let ob = self.char_idx_to_byte_idx(&self.text, oc);
                                 let nb = self.char_idx_to_byte_idx(&self.text, oc - 1);
@@ -779,14 +786,14 @@ impl Widget for TextInput {
                                 nt.push_str(&self.text[..nb]);
                                 nt.push_str(&self.text[ob..]);
                                 self.set_text(nt);
-                                self.cursor_pos = (oc - 1) as u32;
+                                self.cursor_pos = (oc - 1);
                             }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
                         if self.key_delete.update(is_key_down(KeyCode::Delete)) {
                             self.delete_selection();
-                            let oc = self.cursor_pos as usize;
+                            let oc = self.cursor_pos;
                             let cnt = self.text.chars().count();
                             if oc < cnt {
                                 let ob = self.char_idx_to_byte_idx(&self.text, oc);
@@ -795,7 +802,7 @@ impl Widget for TextInput {
                                 nt.push_str(&self.text[..ob]);
                                 nt.push_str(&self.text[eb..]);
                                 self.set_text(nt);
-                                self.cursor_pos = oc as u32;
+                                self.cursor_pos = oc;
                             }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
@@ -824,11 +831,11 @@ impl Widget for TextInput {
                     let truncated: String = self.text.chars().take(max).collect();
                     self.text = truncated;
                     
-                    let new_count = self.text.chars().count() as u32;
+                    let new_count = self.text.chars().count();
                     if self.cursor_pos > new_count {
                         self.cursor_pos = new_count;
                     }
-                    self.selection = None;
+                    self.selection = Selection::new(0);
                 }
             }
         })();
@@ -851,17 +858,18 @@ impl Widget for TextInput {
         
         let mut scroll_offset = 0.0;
         if total_width > available_width {
-            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
             scroll_offset = (cursor_w - available_width * 0.5)
                 .max(0.0)
                 .min(total_width - available_width);
         }
         
         if self.selected {
-            if let Some(sel) = self.selection {
+            let sel = self.selection;
+            {
                 if !sel.is_empty() {
-                    let s = sel.min() as usize;
-                    let e = sel.max() as usize;
+                    let s = sel.min();
+                    let e = sel.max();
                     let start_x = self.measure_prefix_width(display_text.chars().take(s));
                     let sel_w = self.measure_prefix_width(display_text.chars().skip(s).take(e - s));
                     
@@ -880,7 +888,7 @@ impl Widget for TextInput {
             draw_text_ex(
                 ph,
                 (cx, cy),
-                TEXT_LB,
+                CTR_LB,
                 TextParams {
                     font: self.font.clone(),
                     font_size: size,
@@ -890,7 +898,7 @@ impl Widget for TextInput {
                 }
             );
         } else {
-            let text_color = if self.hover || self.selected { self.text_color } else { self.hovered_text_color };
+            let text_color = if self.hover || self.selected { self.hovered_text_color } else { self.text_color  };
             
             let mut visible_text = String::new();
             let mut accumulated_width = 0.0;
@@ -912,7 +920,7 @@ impl Widget for TextInput {
             draw_text_ex(
                 &visible_text,
                 (text_x, text_y),
-                TEXT_LB,
+                CTR_LB,
                 TextParams {
                     font: self.font.clone(),
                     font_size: size,
@@ -924,13 +932,13 @@ impl Widget for TextInput {
             let preedit = &get_context().ime_preedit_string;
             if self.selected && !preedit.is_empty() {
                 let base_x = text_x + self.measure_prefix_width(
-                    display_text.chars().take(self.cursor_pos as usize)
+                    display_text.chars().take(self.cursor_pos)
                 ) - scroll_offset;
                 
                 draw_text_ex(
                     preedit,
                     (base_x, text_y),
-                    TEXT_LB,
+                    CTR_LB,
                     TextParams {
                         font: self.font.clone(),
                         font_size: size,
@@ -949,7 +957,7 @@ impl Widget for TextInput {
         }
         
         if self.selected && self.cursor_visible {
-            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos as usize));
+            let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
             let cx = x + padding + cursor_w - scroll_offset;
             draw_line((cx, y + 8.0), (cx, y + self.height - 8.0), 2.0, fg);
         }

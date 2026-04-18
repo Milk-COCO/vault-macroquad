@@ -10,6 +10,7 @@ use super::{Widget, Action};
 pub struct Button {
     width: f32,
     height: f32,
+    center: (f32,f32),
     pub text: String,
     text_color: Color,
     hovered_text_color: Color,
@@ -25,6 +26,7 @@ impl Default for Button {
         Self {
             width: 200.0,
             height: 50.0,
+            center: (-1.0, -1.0),
             text: "".to_string(),
             text_color: WHITE,
             hovered_text_color: WHITE,
@@ -39,10 +41,11 @@ impl Default for Button {
 
 impl Button {
     /// Creates a new [`Button`] widget.
-    pub fn new(width: f32, height: f32, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
+    pub fn new(width: f32, height: f32, center: impl Into<(f32,f32)>, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
         Self {
             width,
             height,
+            center: center.into(),
             text,
             text_color,
             hovered_text_color,
@@ -65,6 +68,10 @@ impl Button {
     pub fn with_size(self, size: impl Into<(f32,f32)>) -> Self {
         let (width, height) = size.into();
         Self { width, height, ..self }
+    }
+    
+    pub fn with_center(self, center: impl Into<(f32,f32)>) -> Self {
+        Self { center: center.into(), ..self }
     }
     
     pub fn with_text(self, text: String) -> Self {
@@ -114,6 +121,11 @@ impl Button {
         let (width, height) = size.into();
         self.width = width;
         self.height = height;
+        self
+    }
+    
+    pub fn center(&mut self, center: impl Into<(f32,f32)>) -> &mut Self {
+        self.center = center.into();
         self
     }
     
