@@ -3,11 +3,11 @@ use macroquad::prelude::*;
 #[macroquad::main("Images!")]
 async fn main() {
     let poppins = load_ttf_font("examples/poppins.ttf").await.unwrap().shared();
-    let label = Label::new("Images!".to_string(), Color::new(0.05, 0.05, 0.1, 1.0), Color::new(0.5, 0.5, 1.0, 1.0), Some(poppins.clone()), 48.0);
+    let label = Label::new("Images!".to_string(), CTR_LT, Color::new(0.05, 0.05, 0.1, 1.0), Color::new(0.5, 0.5, 1.0, 1.0), Some(poppins.clone()), 48.0);
     let texture = load_texture("examples/flowquad.png").await.unwrap();
     texture.set_filter(FilterMode::Nearest);
-    let image = Picture::new(256.0, 384.0, texture);
-    let mut container = Container::new(Direction::Vertical, Align::Center, 20.0, Color::new(0.05, 0.05, 0.1, 1.0), None, None);
+    let image = Picture::new(256.0, 384.0, CTR_LT, texture);
+    let mut container = Container::new(Direction::Vertical, Align::Center, 20.0, Color::new(0.05, 0.05, 0.1, 1.0), None, CTR_LT, None);
     container.add_child(label);
     container.add_child(image);
 

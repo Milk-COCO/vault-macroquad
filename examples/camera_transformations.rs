@@ -124,31 +124,31 @@ async fn main() {
             format!("target (WASD keys) = ({:+.2}, {:+.2})", target.0, target.1).as_str(),
             (10.0,
             10.0),
-            TEXT_LB, 15.0,
+            CTR_LB, 15.0,
             BLACK,
         );
         draw_text(
             format!("rotation (mouse wheel) = {rotation} degrees").as_str(),
             (10.0,
             25.0),
-            TEXT_LB, 15.0,
+            CTR_LB, 15.0,
             BLACK,
         );
         draw_text(
             format!("zoom (ctrl + mouse wheel) = {zoom:.2}").as_str(),
             (10.0,
             40.0),
-            TEXT_LB, 15.0,
+            CTR_LB, 15.0,
             BLACK,
         );
         draw_text(
             format!("offset (arrow keys) = ({:+.2}, {:+.2})", offset.0, offset.1).as_str(),
             (10.0,
             55.0),
-            TEXT_LB, 15.0,
+            CTR_LB, 15.0,
             BLACK,
         );
-        draw_text("HELLO", (30.0, 200.0), TEXT_LB, 30.0, BLACK);
+        draw_text("HELLO", (30.0, 200.0), CTR_LB, 30.0, BLACK);
 
         next_frame().await
     }

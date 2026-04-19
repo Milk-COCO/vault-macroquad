@@ -22,7 +22,7 @@ async fn main() {
         }
 
         draw_circle((x, y), 15.0, YELLOW);
-        draw_text("move the ball with arrow keys", (20.0, 20.0), TEXT_LB, 20.0, DARKGRAY);
+        draw_text("move the ball with arrow keys", (20.0, 20.0), CTR_LB, 20.0, DARKGRAY);
         next_frame().await
     }
 }

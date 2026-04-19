@@ -60,7 +60,7 @@ async fn main() {
             format!("Rustaceanes: {}", rustaceanes.len()).as_str(),
             (0.,
             32.),
-            TEXT_LB,
+            CTR_LB,
             32.,
             WHITE,
         );

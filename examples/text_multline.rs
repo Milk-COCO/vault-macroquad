@@ -13,7 +13,7 @@ async fn main() {
         draw_multiline_text_ex(
             "ccb\nccb!",
             pos,
-            TEXT_LT,
+            CTR_LB,
             Some(1.0),
             TextParams {
                 font_size: 70.0,
@@ -27,7 +27,7 @@ async fn main() {
         draw_text_ex(
             "_OOO",
             pos,
-            TEXT_RB,
+            CTR_RB,
             TextParams {
                 font_size: 70.0,
                 rotation: angle * 2.0 + 3.14 / 2.,

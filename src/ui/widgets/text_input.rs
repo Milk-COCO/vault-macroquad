@@ -110,6 +110,8 @@ pub struct TextInput {
     width: f32,
     height: f32,
     
+    center: (f32,f32),
+    
     cursor_blink_timer: f32,
     cursor_visible: bool,
     
@@ -134,14 +136,25 @@ pub struct TextInput {
     context_menu_container: Container,
 }
 
+impl Default for TextInput {
+    fn default() -> Self {
+        let text_color = WHITE;
+        let hovered_text_color = WHITE;
+        let bg = DARKGRAY;
+        let fg = GRAY;
+        Self::new(None, 200., 50., CTR_LT, text_color, hovered_text_color, bg, fg, None)
+    }
+}
+
 impl TextInput {
-    pub fn new(max_length: Option<usize>, width: f32, height: f32, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
+    pub fn new(max_length: Option<usize>, width: f32, height: f32, center: impl Into<(f32,f32)>, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
         let mut menu_container = Container::new(
             Direction::Vertical,
             Align::Start,
             0.0,
             fg,
             Some((1.0, 1.0, 1.0, 1.0)),
+            CTR_LT,
             None
         );
         menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
@@ -167,6 +180,7 @@ impl TextInput {
             font,
             width,
             height,
+            center: center.into(),
             
             cursor_blink_timer: 0.0,
             cursor_visible: true,
@@ -255,10 +269,10 @@ impl TextInput {
                 pos += 1;
             }
         } else {
-            while pos > 0 && !chars[(pos - 1)].is_alphanumeric() {
+            while pos > 0 && !chars[pos - 1].is_alphanumeric() {
                 pos -= 1;
             }
-            while pos > 0 && chars[(pos - 1)].is_alphanumeric() {
+            while pos > 0 && chars[pos - 1].is_alphanumeric() {
                 pos -= 1;
             }
         }
@@ -336,7 +350,7 @@ impl TextInput {
         new_text.push_str(&self.text[old_cursor_byte..]);
         
         self.set_text(new_text);
-        self.cursor_pos = (old_cursor_char + text.chars().count());
+        self.cursor_pos = old_cursor_char + text.chars().count();
         self.cursor_visible = true;
         self.cursor_blink_timer = 0.0;
     }
@@ -396,7 +410,7 @@ impl Widget for TextInput {
     
     fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
         (|| {
-            let (x, y) = pos.into();
+            let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
             let mouse_pos = mouse_position();
             let mx = mouse_pos.0;
             let my = mouse_pos.1;
@@ -459,6 +473,12 @@ impl Widget for TextInput {
                             let t = &self.text[sb..eb];
                             if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
                         }
+                        {
+                            self.selection = Selection { start: 0, end: self.text.chars().count() };
+                            self.cursor_pos = self.text.chars().count();
+                            self.cursor_visible = true;
+                            self.cursor_blink_timer = 0.0;
+                        }
                         self.context_menu_open = false;
                         self.long_press_start = None;
                         self.is_dragging = false;
@@ -477,7 +497,7 @@ impl Widget for TextInput {
                                 new_text.push_str(&paste_text);
                                 new_text.push_str(&self.text[old_cursor_byte..]);
                                 self.set_text(new_text);
-                                self.cursor_pos = (old_cursor_char + paste_text.chars().count());
+                                self.cursor_pos = old_cursor_char + paste_text.chars().count();
                             }
                         }
                         self.context_menu_open = false;
@@ -693,35 +713,48 @@ impl Widget for TextInput {
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
-                        if ctrl && is_key_pressed(KeyCode::X) {
-                            let sel = self.selection;
+                        if ctrl && is_key_pressed(KeyCode::X) {let sel = self.selection;
                             {
-                                if !sel.is_empty() {
+                                let (sb,eb) = if !sel.is_empty() {
                                     let s = sel.min();
                                     let e = sel.max();
-                                    let sb = self.char_idx_to_byte_idx(&self.text, s);
-                                    let eb = self.char_idx_to_byte_idx(&self.text, e);
-                                    let t = &self.text[sb..eb];
-                                    if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
-                                    let mut nt = String::new();
-                                    nt.push_str(&self.text[..sb]);
-                                    nt.push_str(&self.text[eb..]);
-                                    self.set_text(nt);
-                                    self.cursor_pos = s;
+                                    (self.char_idx_to_byte_idx(&self.text, s), self.char_idx_to_byte_idx(&self.text, e))
+                                } else {
+                                    (0,self.text.len())
+                                };
+                                let selected_text = &self.text[sb..eb];
+                                if let Ok(mut clipboard) = Clipboard::new() {
+                                    clipboard.set_text(selected_text).ok();
                                 }
+                                let mut new_text = String::new();
+                                new_text.push_str(&self.text[..sb]);
+                                new_text.push_str(&self.text[eb..]);
+                                self.set_text(new_text);
+                                self.cursor_pos = if !sel.is_empty() {
+                                    sel.min()
+                                } else {
+                                    0
+                                };
                             }
                         }
                         if ctrl && is_key_pressed(KeyCode::C) {
                             let sel = self.selection;
                             {
-                                if !sel.is_empty() {
+                                let (sb,eb) = if !sel.is_empty() {
                                     let s = sel.min();
                                     let e = sel.max();
-                                    let sb = self.char_idx_to_byte_idx(&self.text, s);
-                                    let eb = self.char_idx_to_byte_idx(&self.text, e);
-                                    let t = &self.text[sb..eb];
-                                    if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
-                                }
+                                    (self.char_idx_to_byte_idx(&self.text, s), self.char_idx_to_byte_idx(&self.text, e))
+                                } else {
+                                    (0,self.text.len())
+                                };
+                                let t = &self.text[sb..eb];
+                                if let Ok(mut cb) = Clipboard::new() { cb.set_text(t).ok(); }
+                            }
+                            {
+                                self.selection = Selection { start: 0, end: self.text.chars().count() };
+                                self.cursor_pos = self.text.chars().count();
+                                self.cursor_visible = true;
+                                self.cursor_blink_timer = 0.0;
                             }
                         }
                         if ctrl && is_key_pressed(KeyCode::V) {
@@ -735,7 +768,7 @@ impl Widget for TextInput {
                                     nt.push_str(&pt);
                                     nt.push_str(&self.text[ob..]);
                                     self.set_text(nt);
-                                    self.cursor_pos = (oc + pt.chars().count());
+                                    self.cursor_pos = oc + pt.chars().count();
                                 }
                             }
                         }
@@ -786,7 +819,7 @@ impl Widget for TextInput {
                                 nt.push_str(&self.text[..nb]);
                                 nt.push_str(&self.text[ob..]);
                                 self.set_text(nt);
-                                self.cursor_pos = (oc - 1);
+                                self.cursor_pos = oc - 1;
                             }
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
@@ -843,7 +876,7 @@ impl Widget for TextInput {
     }
     
     fn draw(&self, pos: impl Into<(f32,f32)>) {
-        let (x, y) = pos.into();
+        let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
         let bg = if self.hover || self.selected { self.fg } else { self.bg };
         let fg = if self.hover || self.selected { self.bg } else { self.fg };
         

@@ -49,7 +49,7 @@ impl_scene!{for Scene1 {
     }
     
     async fn draw(&mut self) -> anyhow::Result<SceneAction> {
-        draw_text("ccb",(200.,200.),TEXT_LT,30.,WHITE);
+        draw_text("ccb",(200.,200.),CTR_LT,30.,WHITE);
         Ok(SceneAction::None)
     }
     
@@ -79,6 +79,8 @@ impl Scene2 {
 
 impl_scene! { for Scene2 {
     async fn ready(&mut self, input: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> {
+        // 也可以不加这玩意
+        assert_no_input!(input);
         ui_box().insert("Exit",Button::default().with_text("Exit".to_string()));
         
         Ok(SceneAction::None)

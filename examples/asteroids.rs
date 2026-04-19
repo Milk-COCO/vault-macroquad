@@ -71,7 +71,7 @@ async fn main() {
                 text,
                 (screen_width() / 2. - text_size.width / 2.,
                 screen_height() / 2. - text_size.height / 2.),
-                TEXT_LB,
+                CTR_LB,
                 font_size,
                 DARKGRAY,
             );

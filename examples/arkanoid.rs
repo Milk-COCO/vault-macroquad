@@ -52,7 +52,7 @@ async fn main() {
             draw_text_ex(
                 "Press space to start",
                 (SCR_W / 2. - 5., SCR_H / 2.),
-                TEXT_LB,
+                CTR_LB,
                 text_params,
             );
 

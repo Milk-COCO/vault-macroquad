@@ -15,7 +15,7 @@ async fn main() {
             "Hello world in a new default font!",
             (100.0,
             100.0),
-            TEXT_LB,
+            CTR_LB,
             40.0,
             BLACK,
         );
@@ -24,7 +24,7 @@ async fn main() {
             "And with extra formatting options",
             (100.0,
             230.0),
-            TEXT_LB,
+            CTR_LB,
             TextParams {
                 font_size: 45.,
                 color: RED,

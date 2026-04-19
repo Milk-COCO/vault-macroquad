@@ -16,7 +16,7 @@ async fn main() {
             draw_circle((touch.position.x, touch.position.y), size, fill_color);
         }
 
-        draw_text("touch the screen!", (20.0, 20.0), TEXT_LB, 20.0, DARKGRAY);
+        draw_text("touch the screen!", (20.0, 20.0), CTR_LT, 20.0, DARKGRAY);
         next_frame().await
     }
 }

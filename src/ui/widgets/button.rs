@@ -11,7 +11,7 @@ pub struct Button {
     width: f32,
     height: f32,
     center: (f32,f32),
-    pub text: String,
+    text: String,
     text_color: Color,
     hovered_text_color: Color,
     bg: Color,
@@ -169,7 +169,6 @@ impl Button {
         self
     }
     
-    
     pub fn get_text(&self) -> String {
         self.text.clone()
     }
@@ -197,7 +196,7 @@ impl Widget for Button {
     }
 
     fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
-        let (x, y) = pos.into();
+        let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
         let mouse_pos = mouse_position();
         let mx = mouse_pos.0;
         let my = mouse_pos.1;
@@ -208,15 +207,16 @@ impl Widget for Button {
     }
 
     fn draw(&self, pos: impl Into<(f32,f32)>){
-        let (x, y) = pos.into();
+        let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
+        
         let bg = if self.hover { self.fg } else { self.bg };
         let fg = if self.hover { self.bg } else { self.fg };
-        let text_color = if !self.hover { self.text_color } else { self.hovered_text_color };
 
         draw_rectangle((x, y), (self.width, self.height), bg);
         
         let size = self.height * 0.4;
         
+        let text_color = if !self.hover { self.text_color } else { self.hovered_text_color };
         let text_size = measure_text(&self.text, self.font.clone(), size, 1.0);
         draw_text_ex(
             &self.text,

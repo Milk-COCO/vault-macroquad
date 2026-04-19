@@ -59,10 +59,8 @@ where Self: Sized
         Self::new(v, v)
     }
     
-    #[inline]
     fn x(&self) -> f64;
     
-    #[inline]
     fn y(&self) -> f64;
     
     /// 实际像素大小之和

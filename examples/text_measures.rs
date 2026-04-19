@@ -17,7 +17,7 @@ fn draw_text_annotated(text: &str, font: Option<Rc<RefCell<Font>>>, x: f32, base
         "baseline",
         (x + size.width + 10.0,
         baseline - 5.0),
-        TEXT_LB,
+        CTR_LB,
         30.0,
         WHITE,
     );
@@ -37,7 +37,7 @@ fn draw_text_annotated(text: &str, font: Option<Rc<RefCell<Font>>>, x: f32, base
         "topline",
         (x + size.width + 10.0,
         baseline - size.offset_y - 5.0),
-        TEXT_LB, 30.0,
+        CTR_LB, 30.0,
         WHITE,
     );
 
@@ -62,7 +62,7 @@ fn draw_text_annotated(text: &str, font: Option<Rc<RefCell<Font>>>, x: f32, base
         "bottomline",
         (x + size.width + 10.0,
         baseline - size.offset_y + size.height - 5.0),
-        TEXT_LB, 30.0,
+        CTR_LB, 30.0,
         WHITE,
     );
 
@@ -70,7 +70,7 @@ fn draw_text_annotated(text: &str, font: Option<Rc<RefCell<Font>>>, x: f32, base
         text,
         (x,
         baseline),
-        TEXT_LB, TextParams {
+        CTR_LB, TextParams {
             font_size: 100.,
             font,
             ..Default::default()

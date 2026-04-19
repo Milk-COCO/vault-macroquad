@@ -36,12 +36,28 @@ pub struct Container {
     children: Vec<WidgetOption>,
     bg: Color,
     padding: Option<(f32, f32, f32, f32)>,
+    center: (f32,f32),
     border: Option<(f32, Color)>,
+}
+
+impl Default for Container {
+    fn default() -> Self {
+        Self {
+            direction: Direction::Horizontal,
+            align: Align::Center,
+            gap: 0.0,
+            children: vec![],
+            bg: Default::default(),
+            padding: None,
+            center: (-1.0, -1.0),
+            border: None,
+        }
+    }
 }
 
 impl Container {
     /// Creates a new [`Container`] widget.
-    pub fn new(direction: Direction, align: Align, gap: f32, bg: Color, padding: Option<(f32, f32, f32, f32)>, border: Option<(f32, Color)>) -> Self {
+    pub fn new(direction: Direction, align: Align, gap: f32, bg: Color, padding: Option<(f32, f32, f32, f32)>, center: impl Into<(f32,f32)>, border: Option<(f32, Color)>) -> Self {
         Self {
             direction,
             align,
@@ -49,6 +65,7 @@ impl Container {
             children: Vec::new(),
             bg,
             padding,
+            center: center.into(),
             border,
         }
     }
@@ -123,11 +140,13 @@ impl Widget for Container {
     }
 
     fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
-        let (x,y) = pos.into();
+        let width = self.width();
+        let height = self.height();
+        let (x, y) = modify_pos_with_center(pos.into(),self.center,(width,height));
         let (pad_left, pad_right, pad_top, pad_bottom) = self.padding.unwrap_or((0.0, 0.0, 0.0, 0.0));
-
-        let container_width = self.width() - pad_left - pad_right;
-        let container_height = self.height() - pad_top - pad_bottom;
+        
+        let container_width = width - pad_left - pad_right;
+        let container_height = height - pad_top - pad_bottom;
 
         let mut x = x + pad_left;
         let mut y = y + pad_top;
@@ -166,15 +185,15 @@ impl Widget for Container {
     }
 
     fn draw(&self, pos: impl Into<(f32,f32)>) {
-        let (x,y) = pos.into();
+        let width = self.width();
+        let height = self.height();
+        let (x, y) = modify_pos_with_center(pos.into(),self.center,(width,height));
         
         let (pad_left, pad_right, pad_top, pad_bottom) = self.padding.unwrap_or((0.0, 0.0, 0.0, 0.0));
         let padded_x = x + pad_left;
         let padded_y = y + pad_top;
         let original_x = x;
         let original_y = y;
-        let width = self.width();
-        let height = self.height();
 
         draw_rectangle((x, y), (width, height), self.bg);
 

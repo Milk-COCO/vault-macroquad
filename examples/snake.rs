@@ -131,7 +131,7 @@ async fn main() {
                 GOLD,
             );
 
-            draw_text(format!("SCORE: {score}").as_str(), (10., 20.), TEXT_LB, 20., DARKGRAY);
+            draw_text(format!("SCORE: {score}").as_str(), (10., 20.), CTR_LB, 20., DARKGRAY);
         } else {
             clear_background(WHITE);
             let text = "Game Over. Press [enter] to play again.";
@@ -142,7 +142,7 @@ async fn main() {
                 text,
                 (screen_width() / 2. - text_size.width / 2.,
                 screen_height() / 2. + text_size.height / 2.),
-                TEXT_LB,
+                CTR_LB,
                 font_size,
                 DARKGRAY,
             );
