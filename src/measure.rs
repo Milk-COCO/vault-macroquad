@@ -1,6 +1,7 @@
+use crate::get_context;
+use crate::thread_assert;
 use miniquad::window::screen_size;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-use crate::get_context;
 
 pub fn get_measure_ratio() -> Option<f64> {
     let context = get_context();
@@ -10,6 +11,30 @@ pub fn get_measure_ratio() -> Option<f64> {
 pub fn set_measure_ratio(r: Option<f64>) {
     let context = get_context();
     context.measure_ratio = r;
+}
+
+static mut DYN_POS: Option<(f32,f32)> = None;
+
+pub fn set_dyn_pos(factor: impl Into<(f32,f32)>) {
+    thread_assert::same_thread();
+    #[cfg(not(target_os = "Android"))]
+    unsafe {
+        DYN_POS = Some(factor.into());
+    }
+}
+
+pub fn remove_dyn_pos() {
+    thread_assert::same_thread();
+    unsafe {
+        DYN_POS = None;
+    }
+}
+
+pub fn dyn_pos() -> Option<(f32,f32)> {
+    thread_assert::same_thread();
+    unsafe {
+        DYN_POS.clone()
+    }
 }
 
 pub trait Measure
@@ -163,6 +188,29 @@ where Self: Sized
     #[inline]
     fn round(&self) -> Self {
         Self::new(self.x().round(), self.x().round())
+    }
+    
+    fn to_tuple(&self) -> (f64, f64) {
+        (self.x(), self.y())
+    }
+    
+    fn from_tuple(tuple: (f64, f64)) -> Self {
+        Self::new(tuple.0, tuple.1)
+    }
+    
+    #[inline]
+    fn modify_x(self, op: impl FnOnce(f64) -> f64) -> Self {
+        Self::new(op(self.x()), self.y())
+    }
+    
+    #[inline]
+    fn modify_y(self, op: impl FnOnce(f64) -> f64) -> Self {
+        Self::new(self.x(), op(self.y()))
+    }
+    
+    #[inline]
+    fn modify(self, op: impl FnOnce((f64,f64)) -> (f64,f64)) -> Self {
+        Self::from_tuple(op(self.to_tuple()))
     }
 }
 
@@ -341,6 +389,7 @@ impl From<$TypE> for Option<$crate::math::Vec2> {
     };
 }
 pub use impl_measure;
+use crate::input::mouse_position_local;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct VeC(pub f64, pub f64);
@@ -348,6 +397,8 @@ pub struct VeC(pub f64, pub f64);
 impl VeC {
     pub const ZERO: Self = Self(0.0,0.0);
     pub const ONE: Self = Self(1.0,1.0);
+    pub const NONE: Self = Self(0.0,0.0);
+    pub const FULL: Self = Self(1.0,1.0);
     pub const HALF: Self = Self(0.5,0.5);
 }
 
@@ -361,6 +412,8 @@ impl_measure!{
         let screen_w = get_measure_ratio().map_or(screen_w, |r|screen_w.min((screen_h as f64 * r) as f32));
         let physical_x = (self.0 as f32) * screen_w;
         let physical_y = (self.1 as f32) * screen_h;
+        // let delta = mouse_position_local() * 10.;
+        // (physical_x-delta.x, physical_y-delta.y)
         (physical_x, physical_y)
     }
     
@@ -422,8 +475,14 @@ impl_measure!{
     
         let physical_x = half_w + (self.0 as f32) * half_w + offset;
         let physical_y = half_h - (self.1 as f32) * half_h;
-    
-        (physical_x, physical_y)
+        
+        if let Some((fx,fy)) = dyn_pos() {
+            let mouse = mouse_position_local();
+            let d = (mouse.abs() + 1.0).ln() ;
+            (physical_x-mouse.x.signum() * d.x * fx, physical_y-mouse.y.signum() * d.y * fy)
+        } else {
+            (physical_x, physical_y)
+        }
     }
     
     #[inline]
