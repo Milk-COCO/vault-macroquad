@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 
-#[macroquad::main("Hello World Example")]
+#[macroquad::main("Hello Flowquad")]
 async fn main() { 
     let poppins = load_ttf_font("examples/poppins.ttf").await.unwrap().shared();
     let c1 = Color::new(0.05, 0.05, 0.1, 1.0);
@@ -15,8 +15,9 @@ async fn main() {
         
         label.draw((screen_width() / 2.0 - label.width() / 2.0, screen_height() / 2.0 - label.height() / 2.0 - 100.0));
         
-        button.process((screen_width() / 2.0 , screen_height() / 2.0 - 100.0));
-        button.draw((screen_width() / 2.0 , screen_height() / 2.0 - 100.0));
+        button.process(PoS::CC);
+        button.draw(PoS::CC);
+        draw_circle(PoS::CC,2.0,WHITE);
         
         toggle.process((screen_width() - toggle.width() - 10.0, 10.0));
         toggle.draw((screen_width() - toggle.width() - 10.0, 10.0));

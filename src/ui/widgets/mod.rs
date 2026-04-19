@@ -211,7 +211,6 @@ pub fn modify_pos_with_center(pos: (f32,f32), center: (f32,f32), size: (f32,f32)
     let (cx,cy) = center;
     let (width,height) = size;
     let dx = (cx+1.)/2.*width;
-    let dy = (cy+1.)/2.*height;
-    // 绝对坐标左手，相对坐标是右手，所以y要加
+    let dy = (cy-1.)/2.*height;
     (x-dx,y+dy)
 }
