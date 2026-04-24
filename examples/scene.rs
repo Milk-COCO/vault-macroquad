@@ -39,7 +39,7 @@ impl_scene!{for Scene1 {
     }
     
     async fn ui(&mut self) -> anyhow::Result<SceneAction> {
-        let chart_list_button = ui_box().widget_mut::<Button>("scene2").unwrap();
+        let chart_list_button = ui_box().get_mut::<Button>("scene2").unwrap();
         let chart_list_button_pos = (0.,0.);
         if chart_list_button.process(chart_list_button_pos).is_clicked() {
             return Ok(SceneAction::Push(Scene2::new(),None));
@@ -58,7 +58,7 @@ impl_scene!{for Scene1 {
         Ok(SceneAction::None)
     }
     
-    async fn on_result(&mut self, child: Box<dyn Scene>, result: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> {
+    async fn on_result(&mut self, child: Box<dyn Scene>, _result: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> {
         info!("back to scene1");
         if child.as_any().is::<Scene2>() {
             info!("from scene2");
@@ -92,7 +92,7 @@ impl_scene! { for Scene2 {
     }
     
     async fn ui(&mut self) -> anyhow::Result<SceneAction> {
-        let exit = ui_box().widget_mut::<Button>("Exit").unwrap();
+        let exit = ui_box().get_mut::<Button>("Exit").unwrap();
         
         let size = get_time().sin() as f32 * 30. + 40.;
         exit.size((size,size));
