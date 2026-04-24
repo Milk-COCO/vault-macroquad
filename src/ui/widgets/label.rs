@@ -19,7 +19,7 @@ pub struct Label {
 impl Default for Label {
     fn default() -> Self {
         Self {
-            center: (-1.0, -1.0),
+            center: CTR_LT,
             text: "".to_string(),
             bg: DARKGRAY,
             fg: GRAY,

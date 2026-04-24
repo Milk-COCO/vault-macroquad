@@ -26,7 +26,7 @@ impl Default for Button {
         Self {
             width: 200.0,
             height: 50.0,
-            center: (-1.0, -1.0),
+            center: CTR_LT,
             text: "".to_string(),
             text_color: WHITE,
             hovered_text_color: WHITE,

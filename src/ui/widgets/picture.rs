@@ -17,7 +17,7 @@ impl Default for Picture {
         Self {
             height: 100.0,
             width: 100.0,
-            center: (-1.0, -1.0),
+            center: CTR_LT,
             texture: Texture2D::empty(),
         }
     }

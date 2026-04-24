@@ -49,7 +49,7 @@ impl Default for Container {
             children: vec![],
             bg: Default::default(),
             padding: None,
-            center: (-1.0, -1.0),
+            center: CTR_LT,
             border: None,
         }
     }
