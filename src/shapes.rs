@@ -194,6 +194,57 @@ pub fn draw_rectangle_ex(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, 
     context.gl.geometry(&vertices, &indices);
 }
 
+/// Draws a solid rectangle defined by its top-left and bottom-right corners.
+///
+/// # Arguments
+/// * `top_left` - The coordinates of the top-left corner `(x, y)`.
+/// * `bottom_right` - The coordinates of the bottom-right corner `(x, y)`.
+/// * `color` - The color of the rectangle.
+pub fn draw_rectangle_corners(
+    top_left: impl Into<(f32, f32)>,
+    bottom_right: impl Into<(f32, f32)>,
+    color: Color,
+) {
+    let (tl_x, tl_y) = top_left.into();
+    let (br_x, br_y) = bottom_right.into();
+    
+    let context = get_context();
+    
+    // Define the four vertices directly using the corner coordinates
+    #[rustfmt::skip]
+    let vertices = [
+        Vertex::new(tl_x, tl_y, 0., 0.0, 0.0, color), // Top-Left
+        Vertex::new(br_x, tl_y, 0., 1.0, 0.0, color), // Top-Right
+        Vertex::new(br_x, br_y, 0., 1.0, 1.0, color), // Bottom-Right
+        Vertex::new(tl_x, br_y, 0., 0.0, 1.0, color), // Bottom-Left
+    ];
+    
+    // Indices to form two triangles covering the rectangle
+    let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
+    
+    context.gl.texture(None);
+    context.gl.draw_mode(DrawMode::Triangles);
+    context.gl.geometry(&vertices, &indices);
+}
+
+/// Draws a rectangle outline defined by its top-left and bottom-right corners.
+pub fn draw_rectangle_corners_lines(
+    top_left: impl Into<(f32, f32)>,
+    bottom_right: impl Into<(f32, f32)>,
+    thickness: f32,
+    color: Color,
+) {
+    let (tl_x, tl_y) = top_left.into();
+    let (br_x, br_y) = bottom_right.into();
+    
+    let w = br_x - tl_x;
+    let h = br_y - tl_y;
+    
+    // Reuse the existing logic by converting corners back to pos/size
+    // This ensures consistency with your existing draw_rectangle_lines implementation
+    draw_rectangle_lines((tl_x, tl_y), (w, h), thickness, color);
+}
+
 /// Draws an outlined solid hexagon centered at `[x, y]` with a radius `size`, outline thickness
 /// defined by `border`, orientation defined by `vertical` (when `true`, the hexagon points along
 /// the `y` axis), and colors for outline given by `border_color` and fill by `fill_color`.
