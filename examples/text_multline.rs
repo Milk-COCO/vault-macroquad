@@ -13,17 +13,15 @@ async fn main() {
         draw_multiline_text_ex(
             "ccb\nccb!",
             pos,
-            CTR_LB,
-            Some(1.0),
+            CTR_CC,
+            Some(get_time().sin().abs() as f32),
             TextParams {
                 font_size: 70.0,
                 rotation: angle * 2.0 + 3.14 / 2.,
                 ..Default::default()
             },
         );
-        
-        
-        
+
         draw_text_ex(
             "_OOO",
             pos,

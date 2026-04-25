@@ -593,8 +593,8 @@ pub fn draw_multiline_text_ex(
         return TextDimensions::default();
     }
     
-    let (mut x, mut y) = pos.into(); // 原始起点
-    let (center_x, center_y) = center.into(); // center相对坐标（左下角-1,-1）
+    let (x, y) = pos.into();
+    let (center_x, center_y) = center.into();
     
     let font_arc = if let Some(font) = params.font {
         font
@@ -612,15 +612,12 @@ pub fn draw_multiline_text_ex(
             if let Some(metrics) = font.font.horizontal_line_metrics(1.0) {
                 font_line_distance = metrics.new_line_size;
             }
-
+            
             font_line_distance
         }
     };
-
-    let mut dimensions = TextDimensions::default();
+    
     let y_step = line_distance * params.font_size  * params.font_scale;
-
-    let mut positions: Vec<(f32,f32)> = vec![];
     
     let dx = (line_distance * params.font_size * params.font_scale) * params.rotation.sin();
     let dy = (line_distance * params.font_size * params.font_scale) * params.rotation.cos();
@@ -629,22 +626,66 @@ pub fn draw_multiline_text_ex(
     let mut chars_guard = font.characters.borrow_mut();
     let (font, atlas, characters) = (font.font.deref(), atlas_guard.deref_mut(), chars_guard.deref_mut());
     
-    for line in text.lines() {
-        positions.push((x,y));
-        x -= dx;
-        y += dy;
+    let mut dimensions = TextDimensions::default();
+    let mut positions: Vec<(f32, f32)> = vec![];
+    
+    let (mut temp_x, mut temp_y) = (x,y);
+    
+    for (idx, line) in text.lines().enumerate() {
+        positions.push((temp_x, temp_y));
         
-        let line_dimensions = measure_text_ex_in(line, font, atlas, characters, params.rotation, params.font_size, params.font_scale, params.font_scale_aspect);
+        temp_x -= dx;
+        temp_y += dy;
+        
+        let line_dimensions = measure_text_ex_in(
+            line,
+            font,
+            atlas,
+            characters,
+            params.rotation,
+            params.font_size,
+            params.font_scale,
+            params.font_scale_aspect
+        );
         
         dimensions.width = f32::max(dimensions.width, line_dimensions.width);
-        dimensions.height += y_step;
-
+        if idx == 0 {
+            dimensions.height = line_dimensions.height;
+        } else {
+            dimensions.height += y_step;
+        }
+        
         if dimensions.offset_y == 0.0 {
             dimensions.offset_y = line_dimensions.offset_y;
         }
     }
     
-    for (idx,line) in text.lines().enumerate() {
+    let rot_cos = params.rotation.cos();
+    let rot_sin = params.rotation.sin();
+    
+    let cdx = (center_x + 1.0) / 2.0;
+    let cdy = (center_y + 1.0) / 2.0;
+    
+    let fx_global = cdx * dimensions.width;
+    let fy_global = -cdy * dimensions.height;
+    
+    let offset_x = fx_global * rot_cos - fy_global * rot_sin;
+    let offset_y = fx_global * rot_sin + fy_global * rot_cos;
+    
+    let base_bl_x = x - offset_x;
+    let base_bl_y = y - offset_y;
+    
+    let last_pos = positions.last().unwrap();
+    
+    for (idx, line) in text.lines().enumerate() {
+        let p = positions[idx];
+        
+        let rel_x = p.0 - last_pos.0;
+        let rel_y = p.1 - last_pos.1;
+        
+        let final_x = base_bl_x + rel_x;
+        let final_y = base_bl_y + rel_y;
+        
         draw_text_ex_in(
             line,
             font, atlas, characters,
@@ -653,10 +694,11 @@ pub fn draw_multiline_text_ex(
             params.font_scale,
             params.font_scale_aspect,
             params.color,
-            positions[idx], (center_x, center_y)
+            (final_x, final_y),
+            (-1.0, -1.0)
         );
     }
-
+    
     dimensions
 }
 
