@@ -24,7 +24,8 @@ opt-level = 3
 all-features = true
 
 [dependencies]
-miniquad = { path = "../vault-miniquad", features = ["log-impl"] }
+miniquad = { git = "https://github.com/Milk-COCO/vault-miniquad/", features = ["log-impl"] }
+#miniquad = { path = "../vault-miniquad", features = ["log-impl"] }
 quad-rand = "0.2.3"
 glam = { version = "0.32.1", features = ["scalar-math"] }
 image = { version = "0.24", default-features = false, features = ["png", "tga"] }
