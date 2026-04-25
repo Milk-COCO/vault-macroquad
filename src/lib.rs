@@ -155,7 +155,7 @@ use crate::{
 
 use glam::{vec2, Mat4, Vec2};
 
-pub(crate) mod thread_assert {
+pub mod thread_assert {
     static mut THREAD_ID: Option<std::thread::ThreadId> = None;
 
     pub fn set_thread_id() {
