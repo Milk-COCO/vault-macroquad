@@ -157,9 +157,9 @@ impl TextInput {
             CTR_LT,
             None
         );
-        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
-        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
-        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone()));
+        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
+        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
+        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
         
         Self {
             text: String::new(),

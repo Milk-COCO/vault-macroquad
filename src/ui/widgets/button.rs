@@ -16,9 +16,10 @@ pub struct Button {
     hovered_text_color: Color,
     bg: Color,
     fg: Color,
+    font: Option<Rc<RefCell<Font>>>,
+    texture: Option<Texture2D>,
     hover: bool,
     click: bool,
-    font: Option<Rc<RefCell<Font>>>,
 }
 
 impl Default for Button {
@@ -32,16 +33,28 @@ impl Default for Button {
             hovered_text_color: WHITE,
             bg: DARKGRAY,
             fg: GRAY,
+            font: None,
+            texture: None,
             hover: false,
             click: false,
-            font: None,
         }
     }
 }
 
 impl Button {
     /// Creates a new [`Button`] widget.
-    pub fn new(width: f32, height: f32, center: impl Into<(f32,f32)>, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
+    pub fn new(
+        width: f32,
+        height: f32,
+        center: impl Into<(f32,f32)>,
+        text: String,
+        text_color: Color,
+        hovered_text_color: Color,
+        bg: Color,
+        fg: Color,
+        font: Option<Rc<RefCell<Font>>>,
+        texture: Option<Texture2D>,
+    ) -> Self {
         Self {
             width,
             height,
@@ -54,6 +67,7 @@ impl Button {
             hover: false,
             click: false,
             font,
+            texture,
         }
     }
     
@@ -106,6 +120,17 @@ impl Button {
         Self { font: None , ..self }
     }
     
+    pub fn with_texture(self, texture: Texture2D) -> Self {
+        Self { texture: Some(texture), ..self }
+    }
+    
+    pub fn with_option_texture(self, texture: Option<Texture2D>) -> Self {
+        Self { texture, ..self }
+    }
+    
+    pub fn without_texture(self) -> Self {
+        Self { texture: None, ..self }
+    }
     
     pub fn width(&mut self, width: f32) -> &mut Self {
         self.width = width;
@@ -169,6 +194,22 @@ impl Button {
         self
     }
     
+    pub fn texture(&mut self, texture: Texture2D) -> &mut Self {
+        self.texture = Some(texture);
+        self
+    }
+    
+    pub fn non_texture(&mut self) -> &mut Self {
+        self.texture = None;
+        self
+    }
+    
+    pub fn set_texture(&mut self, texture: Option<Texture2D>) -> &mut Self {
+        self.texture = texture;
+        self
+    }
+    
+    
     pub fn get_text(&self) -> String {
         self.text.clone()
     }
@@ -208,6 +249,12 @@ impl Widget for Button {
 
     fn draw(&self, pos: impl Into<(f32,f32)>){
         let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
+        if let Some(texture) = &self.texture {
+            draw_texture_ex(texture, (x, y), WHITE, DrawTextureParams {
+                dest_size: Some(vec2(self.width, self.height)),
+                ..Default::default()
+            });
+        }
         
         let bg = if self.hover { self.fg } else { self.bg };
         let fg = if self.hover { self.bg } else { self.fg };

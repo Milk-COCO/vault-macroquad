@@ -17,10 +17,10 @@ async fn main() {
     let c4 = Color::new(1.0, 1.0, 0.5, 1.0);
     let poppins = load_ttf_font("examples/poppins.ttf").await.unwrap().shared();
     let label = Label::new("Inside a Container!".to_string(), CTR_LT, c1, c2, Some(poppins.clone()), 32.0);
-    let button = Button::new(400.0, 80.0, CTR_LT, "eeeeeeee".to_string(), c1, c3, c1, c3, Some(poppins.clone()));
+    let button = Button::new(400.0, 80.0, CTR_LT, "eeeeeeee".to_string(), c1, c3, c1, c3, Some(poppins.clone()), None);
 
     let sublabel = Label::new("Inside a SUB Container!".to_string(), CTR_LT, c1, c2, Some(poppins.clone()), 32.0);
-    let subbutton = Toggle::new(300.0, 60.0, CTR_LT, "hhhhhhhh".to_string(), c1, c4, c4, c1, Some(poppins.clone()));
+    let subbutton = Toggle::new(300.0, 60.0, CTR_LT, "hhhhhhhh".to_string(), c1, c4, c4, c1, Some(poppins.clone()), None);
 
     let mut subcontainer = Container::new(
         Direction::Vertical,

@@ -10,8 +10,8 @@ async fn main() {
     let c2 = Color::new(0.5, 0.5, 1.0, 1.0);
     let c3 = Color::new(1.0, 1.0, 0.5, 1.0);
     let label = Label::new("Hello, world!".to_string(), CTR_LT, c1, c2, Some(poppins.clone()), 36.0);
-    let mut button = Button::new(500.0, 80.0, (0.,0.), "Clickity Clickity Click".to_string(), Color::new(0.5, 0.75, 0.5, 1.0), c1, c1, Color::new(0.5, 0.75, 0.5, 1.0), Some(poppins.clone()));
-    let mut toggle = Toggle::new(150.0, 50.0, CTR_LT, "Toggle Me".to_string(), c1, c3, c3, c1, Some(poppins.clone()));
+    let mut button = Button::new(500.0, 80.0, (0.,0.), "Clickity Clickity Click".to_string(), Color::new(0.5, 0.75, 0.5, 1.0), c1, c1, Color::new(0.5, 0.75, 0.5, 1.0), Some(poppins.clone()), None);
+    let mut toggle = Toggle::new(150.0, 50.0, CTR_LT, "Toggle Me".to_string(), c1, c3, c3, c1, Some(poppins.clone()), None);
     
     loop {
         clear_background(c1);

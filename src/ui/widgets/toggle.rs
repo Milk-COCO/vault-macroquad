@@ -20,6 +20,7 @@ pub struct Toggle {
     toggle: bool,
     just_clicked: bool,
     font: Option<Rc<RefCell<Font>>>,
+    texture: Option<Texture2D>
 }
 
 impl Default for Toggle {
@@ -37,13 +38,25 @@ impl Default for Toggle {
             toggle: false,
             font: None,
             just_clicked: false,
+            texture: None,
         }
     }
 }
 
 impl Toggle {
     /// Creates a new [`Toggle`] widget.
-    pub fn new(width: f32, height: f32, center: impl Into<(f32,f32)>, text: String, text_color: Color, hovered_text_color: Color, bg: Color, fg: Color, font: Option<Rc<RefCell<Font>>>) -> Self {
+    pub fn new(
+        width: f32,
+        height: f32,
+        center: impl Into<(f32,f32)>,
+        text: String,
+        text_color: Color,
+        hovered_text_color: Color,
+        bg: Color,
+        fg: Color,
+        font: Option<Rc<RefCell<Font>>>,
+        texture: Option<Texture2D>,
+    ) -> Self {
         Self {
             width,
             height,
@@ -57,6 +70,7 @@ impl Toggle {
             toggle: false,
             just_clicked: false,
             font,
+            texture,
         }
     }
     
@@ -109,6 +123,17 @@ impl Toggle {
         Self { font: None , ..self }
     }
     
+    pub fn with_texture(self, texture: Texture2D) -> Self {
+        Self { texture: Some(texture), ..self }
+    }
+    
+    pub fn with_option_texture(self, texture: Option<Texture2D>) -> Self {
+        Self { texture, ..self }
+    }
+    
+    pub fn without_texture(self) -> Self {
+        Self { texture: None, ..self }
+    }
     
     pub fn width(&mut self, width: f32) -> &mut Self {
         self.width = width;
@@ -172,6 +197,22 @@ impl Toggle {
         self
     }
     
+    pub fn texture(&mut self, texture: Texture2D) -> &mut Self {
+        self.texture = Some(texture);
+        self
+    }
+    
+    pub fn non_texture(&mut self) -> &mut Self {
+        self.texture = None;
+        self
+    }
+    
+    pub fn set_texture(&mut self, texture: Option<Texture2D>) -> &mut Self {
+        self.texture = texture;
+        self
+    }
+    
+    
     pub fn get_text(&self) -> String {
         self.text.clone()
     }
@@ -212,6 +253,13 @@ impl Widget for Toggle {
 
     fn draw(&self, pos: impl Into<(f32,f32)>) {
         let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
+        if let Some(texture) = &self.texture {
+            draw_texture_ex(texture, (x, y), WHITE, DrawTextureParams {
+                dest_size: Some(vec2(self.width, self.height)),
+                ..Default::default()
+            });
+        }
+        
         let bg = if self.hover || self.toggle { self.fg } else { self.bg };
         let fg = if self.hover || self.toggle { self.bg } else { self.fg };
 
