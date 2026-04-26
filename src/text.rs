@@ -771,7 +771,7 @@ pub fn wrap_text(
     font_size: f32,
     font_scale: f32,
     maximum_line_length: f32,
-) -> String {
+) -> (String, usize) {
     let font_rc = font.unwrap_or_else(|| get_default_font().clone());
     let mut font_ref = font_rc.borrow_mut();
     let font = font_ref.deref_mut();
@@ -785,6 +785,8 @@ pub fn wrap_text(
     let mut characters = text.char_indices();
     let mut total_width = 0.0;
     let mut word_width = 0.0;
+    
+    let mut line_count = 1;
 
     font.measure_text(text, font_size, font_scale, font_scale, |mut width| {
         // It's impossible this is called more often than the text has characters.
@@ -807,6 +809,7 @@ pub fn wrap_text(
         if word_width + width > maximum_line_length {
             new_text.push_str(&text[current_word_start..current_word_end]);
             new_text.push('\n');
+            line_count += 1;
             current_word_start = current_word_end;
             total_width = 0.0;
             word_width = 0.0;
@@ -818,6 +821,8 @@ pub fn wrap_text(
         }
 
         if c == '\n' {
+            new_text.push('\n');
+            line_count += 1;
             total_width = 0.0;
             word_width = 0.0;
             return;
@@ -827,13 +832,14 @@ pub fn wrap_text(
 
         if total_width > maximum_line_length {
             new_text.push('\n');
+            line_count += 1;
             total_width = word_width;
         }
     });
 
     new_text.push_str(&text[current_word_start..current_word_end]);
 
-    new_text
+    (new_text, line_count)
 }
 
 pub(crate) struct FontsStorage {
