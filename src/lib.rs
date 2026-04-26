@@ -70,6 +70,7 @@ mod error;
 pub mod ui;
 pub mod scene;
 pub mod measure;
+pub mod global;
 
 pub use error::Error;
 
