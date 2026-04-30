@@ -41,7 +41,7 @@ pub const CTR_RT: (f32, f32) = (1.,1.);
 
 pub const CTR_CB: (f32, f32) = (0.,-1.);
 pub const CTR_CT: (f32, f32) = (0.,1.);
-pub const CTR_LC: (f32, f32) = (1.,0.);
+pub const CTR_LC: (f32, f32) = (-1.,0.);
 pub const CTR_RC: (f32, f32) = (1.,0.);
 
 pub const CTR_CC: (f32, f32) = (0.,0.);
