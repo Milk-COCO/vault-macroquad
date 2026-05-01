@@ -37,14 +37,15 @@ impl_scene!{for Scene1 {
     async fn process(&mut self) -> anyhow::Result<SceneAction> {
         Ok(SceneAction::None)
     }
+
     
-    async fn ui(&mut self) -> anyhow::Result<SceneAction> {
+    async fn ui(&mut self, handle: UiHandle) -> anyhow::Result<SceneAction> {
         let chart_list_button = ui_box().get_mut::<Button>(id!("scene2")).unwrap();
         let chart_list_button_pos = (0.,0.);
         if chart_list_button.process(chart_list_button_pos).is_clicked() {
             return Ok(SceneAction::Push(Scene2::new(),None));
         }
-        chart_list_button.draw(chart_list_button_pos);
+        handle.enroll(id!("scene2"),chart_list_button_pos);
         Ok(SceneAction::None)
     }
     
@@ -91,7 +92,7 @@ impl_scene! { for Scene2 {
         Ok(SceneAction::None)
     }
     
-    async fn ui(&mut self) -> anyhow::Result<SceneAction> {
+    async fn ui(&mut self, handle: UiHandle) -> anyhow::Result<SceneAction> {
         let exit = ui_box().get_mut::<Button>(id!("Exit")).unwrap();
         
         let size = get_time().sin() as f32 * 30. + 40.;
@@ -102,8 +103,18 @@ impl_scene! { for Scene2 {
             return Ok(SceneAction::Pop(None));
         }
         
-        exit.draw((200.,200.));
+        handle.enroll(id!("Exit"),(200.,200.));
     
+        Ok(SceneAction::None)
+    }
+
+    async fn draw(&mut self) -> anyhow::Result<SceneAction> {
+        draw_text("behindUi",(200.,200.),CTR_LT,30.,WHITE);
+        Ok(SceneAction::None)
+    }
+    
+    async fn upper(&mut self) -> anyhow::Result<SceneAction> {
+        draw_text("afterUi",(190.,230.),CTR_LT,30.,WHITE);
         Ok(SceneAction::None)
     }
     

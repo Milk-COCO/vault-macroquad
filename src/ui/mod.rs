@@ -61,6 +61,17 @@ impl UiBox {
         self.widgets.insert(id, Some(widget.upcast())).flatten()
     }
     
+    /// 获取组件的可
+    pub(crate) fn get_opt_mut(&mut self, id: u64) -> Option<&mut WidgetOption> {
+        self.widgets.get_mut(&id)?.as_mut()
+    }
+    
+    /// 获取组件的不可变引用
+    pub(crate) fn get_opt(&self, id: u64) -> Option<&WidgetOption> {
+        self.widgets.get(&id)?.as_ref()
+    }
+    
+    
     /// 获取组件的可变引用
     pub fn get_mut<W: 'static + Widown>(&mut self, id: u64) -> Option<&mut W> {
         self.widgets.get_mut(&id)?.as_mut()?.downcast_mut::<W>()

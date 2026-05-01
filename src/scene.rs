@@ -3,6 +3,10 @@
 
 use async_trait::async_trait;
 use std::any::Any;
+use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::mem;
+use anyhow::Context;
 use crate::prelude::*;
 use async_recursion::async_recursion;
 
@@ -133,19 +137,27 @@ pub trait Scene: Any {
     async fn draw(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     /// 每帧 ui
     ///
-    /// draw 后
-    async fn ui(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// process 前、
+    ///
+    /// 使用 `UiHandle::enroll()` 来登记组件id，这样就能在draw后绘制ui了！
+    async fn ui(&mut self, _handle: UiHandle) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// 上层绘制
+    ///
+    /// ui 后
+    async fn upper(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     async fn pause(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     async fn resume(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
-    /// 自己死了后的数据操作
+    /// 自己被pop前执行
     async fn on_death(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
-    /// 子场景死了后的回传数据
+    /// 子场景（直系）被pop后的回传数据
     async fn on_result(&mut self, _child: Box<dyn Scene>, _result: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     async fn next_scene(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
 }
 
 /// 场景流（实际上就是个栈）
 pub struct SceneFlow {
+    /// 要绘制的ui组件。
+    widgets:  HashMap<u64, (f32,f32)>,
     stack: Vec<Box<dyn Scene>>,
     /// 存背景场景的索引（这些场景只执行process）
     back: Vec<usize>,
@@ -161,6 +173,7 @@ impl SceneFlow {
         let action = start_scene.ready(input).await?;
         
         let mut flow = Self {
+            widgets: HashMap::new(),
             stack: vec![start_scene],
             back: vec![],
             paused: false,
@@ -192,7 +205,21 @@ impl SceneFlow {
             process!(self.stack[back]);
         }
         
-        process!(self.stack.last_mut().unwrap());
+        {
+            process!(self.stack.last_mut().unwrap());
+        }
+        // 我也不知道这个代码块为什么要写成这样。神秘rust
+        {
+            let handle = UiHandle{
+                widgets: &mut self.widgets,
+                _marker: PhantomData,
+            };
+            let act = self.stack.last_mut().unwrap()
+                .ui(handle).await?;
+            self.handle_single_action(
+                act
+            ).await?;
+        }
         
         Ok(())
     }
@@ -205,8 +232,19 @@ impl SceneFlow {
             self.handle_single_action(act).await?;
         }
         
+        let widgets = mem::take(&mut self.widgets);
+        widgets.into_iter().for_each(
+            |(id, pos)| {
+                ui_box()
+                    .get_opt_mut(id)
+                    .with_context(||format!("绘制时未找到Ui组件 {} ", id))
+                    .unwrap()
+                    .draw(pos);
+            }
+        );
+        
         if let Some(top) = self.stack.last_mut() {
-            let act = top.ui().await?;
+            let act = top.upper().await?;
             self.handle_single_action(act).await?;
         }
         
@@ -222,55 +260,75 @@ impl SceneFlow {
     }
     
     #[async_recursion(?Send)]
-    async fn handle_single_action(&mut self, cmd: SceneAction) -> anyhow::Result<()> {
-        match cmd {
-            SceneAction::None => Ok(()),
-            
-            SceneAction::Pop(res) => {
-                self.pop_chain(1, res).await?;
+    async fn handle_single_action(&mut self, mut cmd: SceneAction) -> anyhow::Result<()> {
+        loop {
+            match cmd {
+                SceneAction::None => break Ok(()),
                 
-                self.cleanup_back();
-                Ok(())
-            }
-            
-            SceneAction::PopMany(n, res) => {
-                self.pop_chain(n, res).await?;
+                SceneAction::Exit => {
+                    self.should_exit = true;
+                    break Ok(());
+                }
                 
-                self.cleanup_back();
-                Ok(())
-            }
-            
-            SceneAction::Bottom(res) => {
-                let count = self.stack.len().saturating_sub(1);
-                self.pop_chain(count, res).await?;
-                self.back.clear();
-                Ok(())
-            }
-            
-            SceneAction::Exit => {
-                self.should_exit = true;
-                Ok(())
-            }
-            
-            SceneAction::Replace(mut scene, input) => {
-                self.stack.pop();
-                let act = scene.ready(input).await?;
-                self.stack.push(scene);
-                self.handle_single_action(act).await
-            }
-            
-            SceneAction::Push(mut scene, input) => {
-                let act = scene.ready(input).await?;
-                self.stack.push(scene);
-                self.handle_single_action(act).await
-            }
-            
-            SceneAction::Overlay(mut scene, input) => {
-                let act = scene.ready(input).await?;
+                SceneAction::Pop(res) => {
+                    self.pop_chain(1, res).await?;
+                    
+                    self.cleanup_back();
+                    break Ok(());
+                }
                 
-                self.back.push( self.stack.len() - 1 );
-                self.stack.push(scene);
-                self.handle_single_action(act).await
+                SceneAction::PopMany(n, res) => {
+                    self.pop_chain(n, res).await?;
+                    
+                    self.cleanup_back();
+                    break Ok(());
+                }
+                
+                SceneAction::Bottom(res) => {
+                    let count = self.stack.len().saturating_sub(1);
+                    self.pop_chain(count, res).await?;
+                    
+                    self.back.clear();
+                    break Ok(());
+                }
+                
+                SceneAction::Replace(mut scene, input) => {
+                    self.stack.pop(); // 移除当前场景
+                    
+                    let act = scene.ready(input).await?;
+                    
+                    self.stack.push(scene);
+                    
+                    cmd = act;
+                    continue;
+                }
+                
+                SceneAction::Push(mut scene, input) => {
+                    let act = scene.ready(input).await?;
+                    
+                    self.stack.push(scene);
+                    
+                    cmd = act;
+                    continue;
+                }
+                
+                // 6. 覆盖场景 (Overlay)
+                // 记录背景 -> 准备新场景 -> 压入 -> **继续处理新场景的 Ready 返回值**
+                SceneAction::Overlay(mut scene, input) => {
+                    // 记录当前栈顶为背景
+                    if !self.stack.is_empty() {
+                        self.back.push(self.stack.len() - 1);
+                    }
+                    
+                    // 准备新场景
+                    let act = scene.ready(input).await?;
+                    
+                    self.stack.push(scene);
+                    
+                    // 关键：将 cmd 更新为新场景的返回值，继续循环
+                    cmd = act;
+                    continue;
+                }
             }
         }
     }
@@ -348,5 +406,27 @@ impl SceneFlow {
     
     pub fn should_exit(&self) -> bool {
         self.should_exit
+    }
+}
+
+pub struct UiHandle {
+    pub(crate) widgets: *mut  HashMap<u64, (f32,f32)>,
+    // 让编译器保证非多线程
+    _marker: PhantomData<*mut ()>
+}
+
+impl UiHandle {
+    pub(crate) fn as_mut(&self) -> &mut  HashMap<u64, (f32,f32)> {
+        unsafe {
+            self.widgets.as_mut().unwrap()
+        }
+    }
+    
+    pub fn enroll(&self, id: u64, pos: impl ToPhysicalVec + 'static) -> Option<(f32, f32)> {
+        self.as_mut().insert(id, pos.to_physical_vec())
+    }
+    
+    pub fn extend(&self, map: HashMap<u64, (f32,f32)>) {
+        self.as_mut().extend(map)
     }
 }
