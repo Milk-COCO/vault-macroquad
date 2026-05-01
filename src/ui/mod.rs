@@ -105,7 +105,7 @@ impl UiBox {
 #[macro_export]
 macro_rules! id {
     ($s:literal) => {
-        ::const_fnv1a_hash::fnv1a_hash_str_64($s)
+        $crate::const_fnv1a_hash::fnv1a_hash_str_64($s)
     };
 }
 

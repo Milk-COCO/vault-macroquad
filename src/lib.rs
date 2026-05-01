@@ -74,6 +74,8 @@ pub mod global;
 
 pub use error::Error;
 
+pub use const_fnv1a_hash;
+
 /// Macroquad entry point.
 ///
 /// ```skip
