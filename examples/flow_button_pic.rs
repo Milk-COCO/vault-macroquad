@@ -1,4 +1,3 @@
-use miniquad::window::{set_window_ratio, set_window_size};
 use macroquad::prelude::*;
 
 #[macroquad::main("Hello Piced Button")]
@@ -11,8 +10,8 @@ async fn main() {
     let c3 = Color::new(1.0, 1.0, 0.5, 1.0);
     let c4 = Color::new(0.5, 0.75, 0.5, 1.0);
     let label = Label::new("Hello, world!".to_string(), CTR_LT, c1, c2, Some(poppins.clone()), 36.0);
-    let mut button = Button::new(500.0, 80.0, (0.,0.), "Clickity Clickity Click".to_string(), c4, c1, BLANK, BLANK, Some(poppins.clone()), Some(pic.clone()));
-    let mut toggle = Toggle::new(150.0, 50.0, CTR_LT, "Toggle Me".to_string(), c1, c3, BLANK, BLANK, Some(poppins.clone()), Some(pic));
+    let mut button = Button::new((500.0, 80.0), (0.,0.), "Clickity Clickity Click".to_string(), c4, c1, BLANK, BLANK, Some(poppins.clone()), Some(pic.clone()));
+    let mut toggle = Toggle::new((150.0, 50.0), CTR_LT, "Toggle Me".to_string(), c1, c3, BLANK, BLANK, Some(poppins.clone()), Some(pic));
     
     loop {
         clear_background(c1);

@@ -11,7 +11,7 @@ async fn main() {
         draw_circle(pos,2.,GREEN);
         
         draw_multiline_text_ex(
-            "ccb\nccb!",
+            "ccbccb\nccbccb\nccbccb\nccbccb",
             pos,
             CTR_CC,
             Some(get_time().sin().abs() as f32),
@@ -21,17 +21,17 @@ async fn main() {
                 ..Default::default()
             },
         );
-
-        draw_text_ex(
-            "_OOO",
-            pos,
-            CTR_RB,
-            TextParams {
-                font_size: 70.0,
-                rotation: angle * 2.0 + 3.14 / 2.,
-                ..Default::default()
-            },
-        );
+        //
+        // draw_text_ex(
+        //     "_OOO",
+        //     pos,
+        //     CTR_RB,
+        //     TextParams {
+        //         font_size: 70.0,
+        //         rotation: angle * 2.0 + 3.14 / 2.,
+        //         ..Default::default()
+        //     },
+        // );
         
         angle -= 0.030;
         

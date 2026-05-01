@@ -30,7 +30,7 @@ impl_scene!{for Scene1 {
     async fn ready(&mut self, input: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> {
         assert_no_input!(input);
         
-        ui_box().insert("scene2",Button::default().with_text("scene2".to_string()));
+        ui_box().insert(id!("scene2"),Button::default().with_text("scene2".to_string()));
         Ok(SceneAction::None)
     }
     
@@ -39,7 +39,7 @@ impl_scene!{for Scene1 {
     }
     
     async fn ui(&mut self) -> anyhow::Result<SceneAction> {
-        let chart_list_button = ui_box().get_mut::<Button>("scene2").unwrap();
+        let chart_list_button = ui_box().get_mut::<Button>(id!("scene2")).unwrap();
         let chart_list_button_pos = (0.,0.);
         if chart_list_button.process(chart_list_button_pos).is_clicked() {
             return Ok(SceneAction::Push(Scene2::new(),None));
@@ -54,7 +54,7 @@ impl_scene!{for Scene1 {
     }
     
     async fn on_death(&mut self) -> anyhow::Result<SceneAction> {
-        ui_box().remove("scene2");
+        ui_box().remove(id!("scene2"));
         Ok(SceneAction::None)
     }
     
@@ -81,7 +81,7 @@ impl_scene! { for Scene2 {
     async fn ready(&mut self, input: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> {
         // 也可以不加这玩意
         assert_no_input!(input);
-        ui_box().insert("Exit",Button::default().with_text("Exit".to_string()));
+        ui_box().insert(id!("Exit"),Button::default().with_text("Exit".to_string()));
         
         Ok(SceneAction::None)
     }
@@ -92,7 +92,7 @@ impl_scene! { for Scene2 {
     }
     
     async fn ui(&mut self) -> anyhow::Result<SceneAction> {
-        let exit = ui_box().get_mut::<Button>("Exit").unwrap();
+        let exit = ui_box().get_mut::<Button>(id!("Exit")).unwrap();
         
         let size = get_time().sin() as f32 * 30. + 40.;
         exit.size((size,size));
@@ -108,7 +108,7 @@ impl_scene! { for Scene2 {
     }
     
     async fn on_death(&mut self) -> anyhow::Result<SceneAction> {
-        ui_box().remove("Exit");
+        ui_box().remove(id!("Exit"));
         Ok(SceneAction::None)
     }
 }}

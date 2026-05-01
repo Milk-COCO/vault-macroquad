@@ -24,8 +24,8 @@ async fn main() {
         container.draw((screen_width() / 2.0 - container.width() / 2.0, screen_height() / 2.0 - container.height() / 2.0));
         // println!("Text: {}", container.get_child_as::<TextInput>(1).unwrap().get_text());
         // println!("Text2: {}", container.get_child_as::<TextInput>(2).unwrap().get_text());
-        let textinp = container.get_child_as::<TextInput>(1).unwrap();
-        let textinp2 = container.get_child_as::<TextInput>(2).unwrap();
+        let textinp = container.child_as::<TextInput>(1).unwrap();
+        let textinp2 = container.child_as::<TextInput>(2).unwrap();
         if textinp.get_text() != previous_text {
             println!("Text: {}", textinp.get_text());
             previous_text = textinp.get_text();

@@ -12,14 +12,14 @@ async fn main() {
         clear_background(BLACK);
 
         let maximum_line_length = f32::max(20.0, mouse_position().0 - 20.0);
-        let text = wrap_text(LOREM, None, font_size, 1.0, maximum_line_length);
+        let text = wrap_text(LOREM, None, font_size, 1.0, maximum_line_length).0;
         let dimensions = measure_multiline_text(&text, None, font_size, 1.0, Some(1.0));
 
         draw_multiline_text(
             &text,
             (20.0,
             20.0 + dimensions.offset_y),
-            CTR_LB,
+            CTR_CC,
             font_size,
             Some(1.0),
             WHITE,
