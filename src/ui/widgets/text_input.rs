@@ -157,9 +157,9 @@ impl TextInput {
             CTR_LT,
             None
         );
-        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
-        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
-        menu_container.add_child(Button::new(75.0, 28.0, CTR_LT, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
+        menu_container.add_child(Button::new((75.0, 28.0), CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
+        menu_container.add_child(Button::new((75.0, 28.0), CTR_LT, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
+        menu_container.add_child(Button::new((75.0, 28.0), CTR_LT, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
         
         Self {
             text: String::new(),
@@ -428,7 +428,7 @@ impl Widget for TextInput {
             if self.context_menu_open {
                 self.context_menu_container.process(self.context_menu_pos);
                 
-                if let Some(cut_btn) = self.context_menu_container.get_child_as::<Button>(0) {
+                if let Some(cut_btn) = self.context_menu_container.child_as::<Button>(0) {
                     if cut_btn.is_clicked() {
                         let sel = self.selection;
                         {
@@ -459,7 +459,7 @@ impl Widget for TextInput {
                     }
                 }
                 
-                if let Some(copy_btn) = self.context_menu_container.get_child_as::<Button>(1) {
+                if let Some(copy_btn) = self.context_menu_container.child_as::<Button>(1) {
                     if copy_btn.is_clicked() {
                         let sel = self.selection;
                         {
@@ -485,7 +485,7 @@ impl Widget for TextInput {
                     }
                 }
                 
-                if let Some(paste_btn) = self.context_menu_container.get_child_as::<Button>(2) {
+                if let Some(paste_btn) = self.context_menu_container.child_as::<Button>(2) {
                     if paste_btn.is_clicked() {
                         if let Ok(mut clipboard) = Clipboard::new() {
                             if let Ok(paste_text) = clipboard.get_text() {

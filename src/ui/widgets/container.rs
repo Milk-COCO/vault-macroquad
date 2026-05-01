@@ -76,15 +76,32 @@ impl Container {
     }
 
     /// Gets a child [`Widget`] from the container.
-    pub fn get_child(&self, index: usize) -> Option<&WidgetOption> {
+    pub fn child(&self, index: usize) -> Option<&WidgetOption> {
         self.children.get(index)
     }
 
     /// Gets a child [`Widget`] from the container and downcasts it to the specified type.
-    pub fn get_child_as<T: 'static>(&self, index: usize) -> Option<&T> {
+    pub fn child_as<T: 'static>(&self, index: usize) -> Option<&T> {
         self.children.get(index)?
             .as_any()
             .downcast_ref::<T>()
+    }
+    
+    
+    /// Gets a child [`Widget`] from the container.
+    pub fn child_mut(&mut self, index: usize) -> Option<&mut WidgetOption> {
+        self.children.get_mut(index)
+    }
+    
+    /// Gets a child [`Widget`] from the container and downcasts it to the specified type.
+    pub fn child_mut_as<T: 'static>(&mut self, index: usize) -> Option<&mut T> {
+        self.children.get_mut(index)?
+            .as_any_mut()
+            .downcast_mut::<T>()
+    }
+    
+    pub fn button(&mut self, index: usize) -> &mut Button {
+        self.child_mut_as(index).unwrap()
     }
 }
 
