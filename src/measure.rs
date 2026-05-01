@@ -1,7 +1,7 @@
 use crate::get_context;
 use crate::thread_assert;
 use miniquad::window::screen_size;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 pub fn get_measure_ratio() -> Option<f64> {
     let context = get_context();
@@ -17,7 +17,7 @@ static mut DYN_POS: Option<(f32,f32)> = None;
 
 pub fn set_dyn_pos(factor: impl Into<(f32,f32)>) {
     thread_assert::same_thread();
-    #[cfg(not(target_os = "Android"))]
+    #[cfg(not(target_os = "android"))]
     unsafe {
         DYN_POS = Some(factor.into());
     }
@@ -37,15 +37,10 @@ pub fn dyn_pos() -> Option<(f32,f32)> {
     }
 }
 
-pub trait Measure
+pub trait MeasureVec: ToPhysicalVec + FromPhysicalVec
 where Self: Sized
 {
-    #[inline]
     fn new(x: f64, y: f64) -> Self;
-    
-    fn to_physical(&self) -> (f32, f32) ;
-    
-    fn from_physical(physical: (f32, f32)) -> Self ;
     
     /// 零点
     #[inline]
@@ -66,7 +61,7 @@ where Self: Sized
     /// 实际像素大小之和
     #[inline]
     fn to_sum(&self) -> f32 {
-        let phy = self.to_physical();
+        let phy = self.to_physical_vec();
         phy.0 + phy.1
     }
     
@@ -109,7 +104,7 @@ where Self: Sized
     /// 转换为macroquad的Vec2（物理坐标）
     #[inline]
     fn to_mq_vec2(&self) -> crate::math::Vec2 {
-    let (x, y) = self.to_physical();
+        let (x, y) = self.to_physical_vec();
         crate::math::Vec2::new(x, y)
     }
     
@@ -210,6 +205,15 @@ where Self: Sized
     fn modify(self, op: impl FnOnce((f64,f64)) -> (f64,f64)) -> Self {
         Self::from_tuple(op(self.to_tuple()))
     }
+    
+}
+
+pub trait ToPhysicalVec {
+    fn to_physical_vec(&self) -> (f32, f32);
+}
+
+pub trait FromPhysicalVec {
+    fn from_physical_vec(physical: (f32, f32)) -> Self;
 }
 
 ///
@@ -217,27 +221,15 @@ where Self: Sized
 /// ```
 /// pub MyVec(pub f64, pub f64);
 /// ```
-///
-/// 并定义这两个函数
-///
-/// ```
-/// fn to_physical(&self) -> (f32, f32) {
-///     $($tp)*
-/// }
-///
-/// fn from_physical(physical: (f32, f32)) -> Self {
-///     $($fp)*
-/// }
-/// ```
 #[macro_export]
-macro_rules! impl_measure {
+macro_rules! impl_vec {
     (
         $TypE:ident;
         
         $($other:tt)*
     ) => {
     
-impl $crate::measure::Measure for $TypE {
+impl $crate::measure::MeasureVec for $TypE {
     /// 创建新的相对坐标
     #[inline]
     fn new(x: f64, y: f64) -> Self {
@@ -256,6 +248,7 @@ impl $crate::measure::Measure for $TypE {
     
     $($other)*
 }
+
 
 impl Neg for $TypE {
     type Output = Self;
@@ -351,7 +344,7 @@ impl From<(f64, f64)> for $TypE {
 impl From<$TypE> for (f32, f32) {
     #[inline]
     fn from(pos: $TypE) -> Self {
-        pos.to_physical()
+        pos.to_physical_vec()
     }
 }
 
@@ -364,14 +357,14 @@ impl From<$TypE> for f32 {
 impl From<$crate::math::Vec2> for $TypE {
         #[inline]
     fn from(vec2: $crate::math::Vec2) -> Self {
-        Self::from_physical((vec2.x, vec2.y))
+        Self::from_physical_vec((vec2.x, vec2.y))
     }
 }
 
 impl From<$TypE> for $crate::math::Vec2 {
         #[inline]
     fn from(pos: $TypE) -> Self {
-        let (x, y) = pos.to_physical();
+        let (x, y) = pos.to_physical_vec();
         $crate::math::Vec2::new(x, y)
     }
 }
@@ -379,14 +372,14 @@ impl From<$TypE> for $crate::math::Vec2 {
 impl From<$TypE> for Option<$crate::math::Vec2> {
         #[inline]
     fn from(pos: $TypE) -> Self {
-        let (x, y) = pos.to_physical();
+        let (x, y) = pos.to_physical_vec();
         Some($crate::math::Vec2::new(x, y))
     }
 }
     
     };
 }
-pub use impl_measure;
+pub use impl_vec;
 use crate::input::mouse_position_local;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -400,24 +393,28 @@ impl VeC {
     pub const HALF: Self = Self(0.5,0.5);
 }
 
-impl_measure!{
+impl_vec!{
     VeC;
-    
+}
+
+impl ToPhysicalVec for VeC {
     /// 相对大小 → 实际像素大小
     #[inline]
-    fn to_physical(&self) -> (f32, f32) {
+    fn to_physical_vec(&self) -> (f32, f32) {
         let (screen_w, screen_h) = screen_size();
-        let screen_w = get_measure_ratio().map_or(screen_w, |r|screen_w.min((screen_h as f64 * r) as f32));
+        let screen_w = get_measure_ratio().map_or(screen_w, |r| screen_w.min((screen_h as f64 * r) as f32));
         let physical_x = (self.0 as f32) * screen_w;
         let physical_y = (self.1 as f32) * screen_h;
         // let delta = mouse_position_local() * 10.;
         // (physical_x-delta.x, physical_y-delta.y)
         (physical_x, physical_y)
     }
-    
+}
+
+impl FromPhysicalVec for VeC {
     /// 实际像素大小 → 相对大小
     #[inline]
-    fn from_physical(physical: (f32, f32)) -> Self {
+    fn from_physical_vec(physical: (f32, f32)) -> Self {
         let (screen_w, screen_h) = screen_size();
         let screen_w = get_measure_ratio().map_or(screen_w, |r|screen_w.min((screen_h as f64 * r) as f32));
         
@@ -427,6 +424,7 @@ impl_measure!{
         Self(x, y)
     }
 }
+
 
 /// 相对屏幕中的坐标
 /// - 元组结构体：PoS(f64, f64)，直接创建更便捷
@@ -463,14 +461,16 @@ impl PoS {
     }
 }
 
-impl_measure!{
+impl_vec!{
     PoS;
-    
+}
+
+impl ToPhysicalVec for PoS {
     #[inline]
-    fn to_physical(&self) -> (f32, f32) {
+    fn to_physical_vec(&self) -> (f32, f32) {
         let (half_w, half_h) = Self::half_area();
         let offset = Self::screen_offset();
-    
+        
         let physical_x = half_w + (self.0 as f32) * half_w + offset;
         let physical_y = half_h - (self.1 as f32) * half_h;
         
@@ -482,17 +482,106 @@ impl_measure!{
             (physical_x, physical_y)
         }
     }
-    
+}
+
+impl FromPhysicalVec for PoS {
     #[inline]
-    fn from_physical(physical: (f32, f32)) -> Self {
+    fn from_physical_vec(physical: (f32, f32)) -> Self {
         let (half_w, half_h) = Self::half_area();
         let offset = Self::screen_offset();
-    
+        
         let visible_x = physical.0 - offset;
-    
+        
         let x = (visible_x - half_w) as f64 / half_w as f64;
         let y = -(physical.1 - half_h) as f64 / half_h as f64;
-    
+        
         Self(x, y)
+    }
+}
+
+impl ToPhysicalVec for (f32, f32) {
+    #[inline]
+    fn to_physical_vec(&self) -> (f32, f32) {
+        *self
+    }
+}
+
+impl FromPhysicalVec for (f32, f32) {
+    #[inline]
+    fn from_physical_vec(physical: (f32, f32)) -> Self {
+        physical
+    }
+}
+
+pub struct VecExpr {
+    start: Box<dyn Fn() -> (f32,f32)>,
+    expr: Vec<Box<dyn Fn((f32,f32)) -> (f32,f32)>>,
+}
+
+impl VecExpr {
+    pub fn new( start: impl Fn() -> (f32,f32) + 'static ) -> Self {
+        let this = Self { start: Box::new(start), expr: vec![] };
+        this
+    }
+    
+    pub fn join(mut self, op: impl Fn((f32,f32)) -> (f32,f32) + 'static) -> Self {
+        self.expr.push(Box::new(op));
+        self
+    }
+}
+
+impl ToPhysicalVec for VecExpr {
+    fn to_physical_vec(&self) -> (f32, f32) {
+        let (mut x,mut y) = (self.start)();
+        for expr in self.expr.iter() {
+            (x,y) = expr.deref()((x,y));
+        }
+        (x,y)
+    }
+}
+
+pub trait ToPhysical {
+    fn to_physical(&self) -> f32;
+}
+
+impl<T: ToPhysicalVec> ToPhysical for T {
+    fn to_physical(&self) -> f32 {
+        let (x,y) = self.to_physical_vec();
+        x + y
+    }
+}
+
+
+impl<T: ToPhysical> ToPhysical for (T,T) {
+    fn to_physical(&self) -> f32 {
+        let (x,y) = self;
+        x.to_physical() + y.to_physical()
+    }
+}
+
+pub struct MeasExpr {
+    start: Box<dyn Fn() -> f32>,
+    expr: Vec<Box<dyn Fn(f32) -> f32>>,
+}
+
+impl MeasExpr {
+    pub fn new( start: impl Fn() -> f32 + 'static ) -> Self {
+        let this = Self { start: Box::new(start), expr: vec![] };
+        this
+    }
+    
+    pub fn join(mut self, op: impl Fn(f32) -> f32 + 'static) -> Self {
+        self.expr.push(Box::new(op));
+        self
+    }
+}
+
+impl ToPhysical for MeasExpr {
+    fn to_physical(&self) -> f32 {
+        let mut x = (self.start)();
+        for expr in self.expr.iter() {
+            x = expr.deref()(x);
+        }
+        x
     }
 }
