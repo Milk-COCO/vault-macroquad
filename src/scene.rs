@@ -96,7 +96,7 @@ pub enum SceneAction {
     Bottom(Option<Box<dyn Any>>),
     /// 退出进程
     Exit,
-    /// 打开子场景，本场景继续执行（仅process）。
+    /// 打开子场景，本场景继续执行（仅back和process）。
     Overlay(Box<dyn Scene>, Option<Box<dyn Any>>),
     /// 替换当前场景
     Replace(Box<dyn Scene>, Option<Box<dyn Any>>),
@@ -129,24 +129,36 @@ pub trait Scene: Any {
     
     /// 你是准备吗
     async fn ready(&mut self, _input: Option<Box<dyn Any>>) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
-    /// 每帧
+    /// 底部绘制
+    ///
+    /// [`ui`](Scene::ui()) 前
+    async fn back(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// 每帧 ui 绘制
+    ///
+    /// [`process`](Scene::process()) 前
+    ///
+    /// 使用 [`handle.enroll()`](UiHandle::enroll()) 来登记组件id，这样就能在draw后绘制ui了！
+    ///
+    /// 当然你也可以使用 [`handle.give()`](UiHandle::give()) 来直接传递组件的所有权，同样也可以！
+    async fn ui(&mut self, _handle: UiHandle) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// 每帧逻辑
     async fn process(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     /// 每帧绘制
     ///
-    /// process 后
+    /// [`process`](Scene::process()) 后
     async fn draw(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
-    /// 每帧 ui
-    ///
-    /// process 前、
-    ///
-    /// 使用 `UiHandle::enroll()` 来登记组件id，这样就能在draw后绘制ui了！
-    async fn ui(&mut self, _handle: UiHandle) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     /// 上层绘制
     ///
-    /// ui 后
+    /// 在 [`ui`](Scene::ui()) 绘制后执行
     async fn upper(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     async fn pause(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     async fn resume(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// 子场景（直系）被pop后执行
+    async fn on_pop(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// 自己push后立马执行
+    async fn on_push(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
+    /// 自己overlay后立马执行
+    async fn on_overlay(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     /// 自己被pop前执行
     async fn on_death(&mut self) -> anyhow::Result<SceneAction> { Ok(SceneAction::None) }
     /// 子场景（直系）被pop后的回传数据
@@ -157,9 +169,11 @@ pub trait Scene: Any {
 /// 场景流（实际上就是个栈）
 pub struct SceneFlow {
     /// 要绘制的ui组件。
-    widgets:  HashMap<u64, (f32,f32)>,
+    widgets: Vec<(WidgetOption, (f32,f32))>,
+    /// 登记的ui_box组件。
+    enrollees: HashMap<u64, (f32, f32)>,
     stack: Vec<Box<dyn Scene>>,
-    /// 存背景场景的索引（这些场景只执行process）
+    /// 存背景场景的索引（这些场景只执行back和process）
     back: Vec<usize>,
     paused: bool,
     should_exit: bool,
@@ -173,7 +187,8 @@ impl SceneFlow {
         let action = start_scene.ready(input).await?;
         
         let mut flow = Self {
-            widgets: HashMap::new(),
+            widgets: Vec::new(),
+            enrollees: HashMap::new(),
             stack: vec![start_scene],
             back: vec![],
             paused: false,
@@ -191,35 +206,46 @@ impl SceneFlow {
         
         self.handle_commands().await?;
         
-        macro_rules! process {
-            ($e:expr) => {
-                let act = $e
-                    .process().await?;
-                self.handle_single_action(
-                    act
-                ).await?;
+        macro_rules! run {
+            ($e: expr => $f: ident ($($args:expr)*) $end: block) => {
+                let this = $e;
+                if let Some(this) = this {
+                    let act = this.$f ($($args)*).await?;
+                    self.handle_single_action(
+                        act
+                    ).await?;
+                } else $end
             };
         }
+        
         
         for back in self.back.clone() {
-            process!(self.stack[back]);
+            run!(self.stack.get_mut(back).map(|v|v.as_mut()) => back() {
+                break;
+            });
+            run!(self.stack.get_mut(back).map(|v|v.as_mut()) => process() {
+                break;
+            });
         }
         
-        {
-            process!(self.stack.last_mut().unwrap());
-        }
-        // 我也不知道这个代码块为什么要写成这样。神秘rust
-        {
-            let handle = UiHandle{
-                widgets: &mut self.widgets,
-                _marker: PhantomData,
-            };
-            let act = self.stack.last_mut().unwrap()
-                .ui(handle).await?;
-            self.handle_single_action(
-                act
-            ).await?;
-        }
+        run!(self.stack.last_mut().map(|v|v.as_mut()) => back() {
+            self.should_exit = true;
+            return Ok(());
+        });
+        run!(self.stack.last_mut().map(|v|v.as_mut()) => process() {
+            self.should_exit = true;
+            return Ok(());
+        });
+        
+        let handle = UiHandle{
+            enrollees: &mut self.enrollees,
+            widgets: &mut self.widgets,
+            _marker: PhantomData,
+        };
+        run!(self.stack.last_mut().map(|v|v.as_mut()) => ui(handle) {
+            self.should_exit = true;
+            return Ok(());
+        });
         
         Ok(())
     }
@@ -232,7 +258,7 @@ impl SceneFlow {
             self.handle_single_action(act).await?;
         }
         
-        let widgets = mem::take(&mut self.widgets);
+        let widgets = mem::take(&mut self.enrollees);
         widgets.into_iter().for_each(
             |(id, pos)| {
                 ui_box()
@@ -240,6 +266,13 @@ impl SceneFlow {
                     .with_context(||format!("绘制时未找到Ui组件 {} ", id))
                     .unwrap()
                     .draw(pos);
+            }
+        );
+        
+        let widgets = mem::take(&mut self.widgets);
+        widgets.into_iter().for_each(
+            |(widget, pos)| {
+                widget.draw(pos);
             }
         );
         
@@ -278,6 +311,9 @@ impl SceneFlow {
                 }
                 
                 SceneAction::PopMany(n, res) => {
+                    if n == 0 {
+                        break Ok(());
+                    }
                     self.pop_chain(n, res).await?;
                     
                     self.cleanup_back();
@@ -410,23 +446,38 @@ impl SceneFlow {
 }
 
 pub struct UiHandle {
-    pub(crate) widgets: *mut  HashMap<u64, (f32,f32)>,
+    pub(crate) enrollees: *mut HashMap<u64, (f32, f32)>,
+    pub(crate) widgets: *mut Vec<(WidgetOption, (f32,f32))>,
     // 让编译器保证非多线程
     _marker: PhantomData<*mut ()>
 }
 
 impl UiHandle {
-    pub(crate) fn as_mut(&self) -> &mut  HashMap<u64, (f32,f32)> {
+    pub(crate) fn enrollees_mut(&self) -> &mut  HashMap<u64, (f32, f32)> {
+        unsafe {
+            self.enrollees.as_mut().unwrap()
+        }
+    }
+    
+    pub(crate) fn widgets_mut(&self) -> &mut Vec<(WidgetOption, (f32,f32))> {
         unsafe {
             self.widgets.as_mut().unwrap()
         }
     }
     
     pub fn enroll(&self, id: u64, pos: impl ToPhysicalVec + 'static) -> Option<(f32, f32)> {
-        self.as_mut().insert(id, pos.to_physical_vec())
+        self.enrollees_mut().insert(id, pos.to_physical_vec())
     }
     
-    pub fn extend(&self, map: HashMap<u64, (f32,f32)>) {
-        self.as_mut().extend(map)
+    pub fn enroll_many(&self, map: HashMap<u64, (f32,f32)>) {
+        self.enrollees_mut().extend(map)
+    }
+    
+    pub fn give(&self, widget: impl IntoWidgetOption, pos: impl ToPhysicalVec + 'static) {
+        self.widgets_mut().push((widget.upcast(),pos.to_physical_vec()))
+    }
+    
+    pub fn give_many(&self, widgets: Vec<(WidgetOption, (f32,f32))>) {
+        self.widgets_mut().extend(widgets)
     }
 }
