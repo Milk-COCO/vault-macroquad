@@ -103,7 +103,7 @@ pub struct TextInput {
     placeholder_color: Color,
     
     hover: bool,
-    just_clicked: bool,
+    clicked: bool,
     selected: bool,
     
     font: Option<Rc<RefCell<Font>>>,
@@ -174,7 +174,7 @@ impl TextInput {
             placeholder_color: Color::new(0.5, 0.5, 0.5, 1.0),
             
             hover: false,
-            just_clicked: false,
+            clicked: false,
             selected: false,
             
             font,
@@ -417,7 +417,7 @@ impl Widget for TextInput {
             
             let padding = 4.0;
             
-            self.just_clicked = false;
+            self.clicked = false;
             self.just_submitted = false;
             
             self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
@@ -429,7 +429,7 @@ impl Widget for TextInput {
                 self.context_menu_container.process(self.context_menu_pos);
                 
                 if let Some(cut_btn) = self.context_menu_container.child_as::<Button>(0) {
-                    if cut_btn.is_clicked() {
+                    if cut_btn.is_released() {
                         let sel = self.selection;
                         {
                             let (sb,eb) = if !sel.is_empty() {
@@ -460,7 +460,7 @@ impl Widget for TextInput {
                 }
                 
                 if let Some(copy_btn) = self.context_menu_container.child_as::<Button>(1) {
-                    if copy_btn.is_clicked() {
+                    if copy_btn.is_released() {
                         let sel = self.selection;
                         {
                             let (sb,eb) = if !sel.is_empty() {
@@ -486,7 +486,7 @@ impl Widget for TextInput {
                 }
                 
                 if let Some(paste_btn) = self.context_menu_container.child_as::<Button>(2) {
-                    if paste_btn.is_clicked() {
+                    if paste_btn.is_released() {
                         if let Ok(mut clipboard) = Clipboard::new() {
                             if let Ok(paste_text) = clipboard.get_text() {
                                 self.delete_selection();
@@ -533,7 +533,7 @@ impl Widget for TextInput {
                 self.long_press_start = Some(Instant::now());
                 self.long_press_initial_pos = mouse_pos;
                 self.selected = true;
-                self.just_clicked = true;
+                self.clicked = true;
             }
             
             let threshold = screen_width().min(screen_height()) * 0.01;
@@ -1001,7 +1001,7 @@ impl Widget for TextInput {
 
 impl Action for TextInput {
     fn is_clicked(&self) -> bool {
-        self.just_clicked
+        self.clicked
     }
     
     fn is_hovered(&self) -> bool {

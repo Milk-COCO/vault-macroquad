@@ -9,7 +9,6 @@ readme="README.md"
 license = "MIT OR Apache-2.0"
 
 [features]
-audio = ["quad-snd"]
 log-rs = ["log"]
 glam-serde = ["glam/serde"]
 default = []
@@ -24,8 +23,8 @@ opt-level = 3
 all-features = true
 
 [dependencies]
-miniquad = { git = "https://github.com/Milk-COCO/vault-miniquad/", features = ["log-impl"] }
-#miniquad = { path = "../vault-miniquad", features = ["log-impl"] }
+#miniquad = { git = "https://github.com/Milk-COCO/vault-miniquad/", features = ["log-impl"] }
+miniquad = { path = "../vault-miniquad", features = ["log-impl"] }
 quad-rand = "0.2.3"
 glam = { version = "0.32.1", features = ["scalar-math"] }
 image = { version = "0.24", default-features = false, features = ["png", "tga"] }
@@ -33,7 +32,6 @@ macroquad_macro = { version = "0.1.8", path = "macroquad_macro" }
 fontdue = "0.9"
 backtrace = { version = "0.3.60", optional = true }
 log = { version = "0.4", optional = true }
-quad-snd = { version = "0.2", optional = true }
 parking_lot = "0.12.5"
 arboard = "3.6.1"
 derive_more = { version = "2.1.1", features = ["deref","deref_mut"] }
@@ -41,6 +39,7 @@ async-trait = "0.1.89"
 async-recursion = "1.1.1"
 anyhow = "1.0.102"
 const-fnv1a-hash = "1.1.0"
+paste = "1.0.15"
 
 [dev-dependencies]
 macroquad-particles = { path = "./particles" }
@@ -52,7 +51,6 @@ macroquad-platformer = { path = "./physics-platformer" }
 [patch.crates-io]
 macroquad = { path = './' }
 
-#quad-snd = {path = '../quad-snd'}
 #miniquad = { path = '../miniquad' }
 #miniquad = { git = "https://github.com/not-fl3/miniquad", branch = "msaa_render_texture" }
 #quad-gl = {path = './quad-gl'}

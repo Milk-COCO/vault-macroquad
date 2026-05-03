@@ -42,77 +42,14 @@ impl Label {
         }
     }
     
-    pub fn with_size(self, size: f32) -> Self {
-        Self { size, ..self }
-    }
-    
-    pub fn with_center(self, center: impl Into<(f32,f32)>) -> Self {
-        Self { center: center.into(), ..self }
-    }
-    
-    pub fn with_text(self, text: String) -> Self {
-        Self { text, ..self }
-    }
-    
-    pub fn with_bg(self, bg: Color) -> Self {
-        Self { bg, ..self }
-    }
-    
-    pub fn with_fg(self, fg: Color) -> Self {
-        Self { fg, ..self }
-    }
-    
-    pub fn with_font(self, font: Rc<RefCell<Font>>) -> Self {
-        Self { font: Some(font), ..self }
-    }
-    
-    pub fn with_option_font(self, font: Option<Rc<RefCell<Font>>>) -> Self {
-        Self { font, ..self }
-    }
-    
-    pub fn without_font(self) -> Self {
-        Self { font: None , ..self }
-    }
-    
-    pub fn size(&mut self, size: f32) -> &mut Self {
-        self.size = size;
-        self
-    }
-    
-    pub fn center(&mut self, center: impl Into<(f32,f32)>) -> &mut Self {
-        self.center = center.into();
-        self
-    }
-    
-    pub fn text(&mut self, text: String) -> &mut Self {
-        self.text = text;
-        self
-    }
-    
-    pub fn bg(&mut self, bg: Color) -> &mut Self {
-        self.bg = bg;
-        self
-    }
-    
-    pub fn fg(&mut self, fg: Color) -> &mut Self {
-        self.fg = fg;
-        self
-    }
-    
-    pub fn font(&mut self, font: Rc<RefCell<Font>>) -> &mut Self {
-        self.font = Some(font);
-        self
-    }
-    
-    pub fn non_font(&mut self) -> &mut Self {
-        self.font = None;
-        self
-    }
-    
-    pub fn set_font(&mut self, font: Option<Rc<RefCell<Font>>>) -> &mut Self {
-        self.font = font;
-        self
-    }
+    define_with_and_fix_methods!(
+        size: f32,
+        center: (f32,f32),
+        text: String,
+        bg: Color,
+        fg: Color,
+        font: Option<Rc<RefCell<Font>>>,
+    );
     
     pub fn get_text(&self) -> String {
         self.text.clone()

@@ -35,32 +35,11 @@ impl Picture {
         }
     }
     
-    pub fn with_size(self, size: impl ToPhysicalVec + 'static) -> Self {
-        Self { size: Box::new(size), ..self }
-    }
-    
-    pub fn with_center(self, center: impl Into<(f32,f32)>) -> Self {
-        Self { center: center.into(), ..self }
-    }
-    
-    pub fn with_texture(self, texture: Texture2D) -> Self {
-        Self { texture, ..self }
-    }
-    
-    pub fn size(&mut self, size: impl ToPhysicalVec + 'static) -> &mut Self {
-        self.size = Box::new(size);
-        self
-    }
-    
-    pub fn center(&mut self, center: impl Into<(f32,f32)>) -> &mut Self {
-        self.center = center.into();
-        self
-    }
-    
-    pub fn texture(&mut self, texture: Texture2D) -> &mut Self {
-        self.texture = texture;
-        self
-    }
+    define_with_and_fix_methods!(
+        size: Box<dyn ToPhysicalVec>,
+        center: (f32,f32),
+        texture: Texture2D,
+    );
 }
 
 impl Widget for Picture {

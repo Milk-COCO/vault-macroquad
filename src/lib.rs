@@ -71,6 +71,7 @@ pub mod ui;
 pub mod scene;
 pub mod measure;
 pub mod global;
+pub mod helper;
 
 pub use error::Error;
 

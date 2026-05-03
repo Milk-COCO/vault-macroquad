@@ -18,7 +18,9 @@ pub struct Button {
     font: Option<Rc<RefCell<Font>>>,
     texture: Option<Texture2D>,
     hover: bool,
-    click: bool,
+    clicked: bool,
+    pressed: bool,
+    released: bool,
 }
 
 impl Default for Button {
@@ -34,7 +36,9 @@ impl Default for Button {
             font: None,
             texture: None,
             hover: false,
-            click: false,
+            clicked: false,
+            pressed: false,
+            released: false,
         }
     }
 }
@@ -61,7 +65,9 @@ impl Button {
             bg,
             fg,
             hover: false,
-            click: false,
+            clicked: false,
+            pressed: false,
+            released: false,
             font,
             texture,
         }
@@ -79,130 +85,30 @@ impl Button {
             font: None,
             texture: None,
             hover: false,
-            click: false,
+            clicked: false,
+            pressed: false,
+            released: false,
         }
     }
     
-    pub fn with_size(self, size: impl ToPhysicalVec + 'static) -> Self {
-        Self { size: Box::new(size), ..self }
-    }
-    
-    pub fn with_center(self, center: impl Into<(f32,f32)>) -> Self {
-        Self { center: center.into(), ..self }
-    }
-    
-    pub fn with_text(self, text: String) -> Self {
-        Self { text, ..self }
-    }
-    
-    pub fn with_text_color(self, text_color: Color) -> Self {
-        Self { text_color, ..self }
-    }
-    
-    pub fn with_hovered_text_color(self, hovered_text_color: Color) -> Self {
-        Self { hovered_text_color, ..self }
-    }
-    
-    pub fn with_bg(self, bg: Color) -> Self {
-        Self { bg, ..self }
-    }
-    
-    pub fn with_fg(self, fg: Color) -> Self {
-        Self { fg, ..self }
-    }
-    
-    pub fn with_font(self, font: Rc<RefCell<Font>>) -> Self {
-        Self { font: Some(font), ..self }
-    }
-    
-    pub fn with_option_font(self, font: Option<Rc<RefCell<Font>>>) -> Self {
-        Self { font, ..self }
-    }
-    
-    pub fn without_font(self) -> Self {
-        Self { font: None , ..self }
-    }
-    
-    pub fn with_texture(self, texture: Texture2D) -> Self {
-        Self { texture: Some(texture), ..self }
-    }
-    
-    pub fn with_option_texture(self, texture: Option<Texture2D>) -> Self {
-        Self { texture, ..self }
-    }
-    
-    pub fn without_texture(self) -> Self {
-        Self { texture: None, ..self }
-    }
-    
-    pub fn size(&mut self, size: impl ToPhysicalVec + 'static) -> &mut Self {
-        self.size = Box::new(size);
-        self
-    }
-    
-    pub fn center(&mut self, center: impl Into<(f32,f32)>) -> &mut Self {
-        self.center = center.into();
-        self
-    }
-    
-    pub fn text(&mut self, text: String) -> &mut Self {
-        self.text = text;
-        self
-    }
-    
-    pub fn text_color(&mut self, text_color: Color) -> &mut Self {
-        self.text_color = text_color;
-        self
-    }
-    
-    pub fn hovered_text_color(&mut self, hovered_text_color: Color) -> &mut Self {
-        self.hovered_text_color = hovered_text_color;
-        self
-    }
-    
-    pub fn bg(&mut self, bg: Color) -> &mut Self {
-        self.bg = bg;
-        self
-    }
-    
-    pub fn fg(&mut self, fg: Color) -> &mut Self {
-        self.fg = fg;
-        self
-    }
-    
-    pub fn font(&mut self, font: Rc<RefCell<Font>>) -> &mut Self {
-        self.font = Some(font);
-        self
-    }
-    
-    pub fn non_font(&mut self) -> &mut Self {
-        self.font = None;
-        self
-    }
-    
-    pub fn set_font(&mut self, font: Option<Rc<RefCell<Font>>>) -> &mut Self {
-        self.font = font;
-        self
-    }
-    
-    pub fn texture(&mut self, texture: Texture2D) -> &mut Self {
-        self.texture = Some(texture);
-        self
-    }
-    
-    pub fn non_texture(&mut self) -> &mut Self {
-        self.texture = None;
-        self
-    }
-    
-    pub fn set_texture(&mut self, texture: Option<Texture2D>) -> &mut Self {
-        self.texture = texture;
-        self
-    }
-    
+    define_with_and_fix_methods!(
+        size: Box<dyn ToPhysicalVec>,
+        center: (f32,f32),
+        text: String,
+        text_color: Color,
+        hovered_text_color: Color,
+        bg: Color,
+        fg: Color,
+        font: Option<Rc<RefCell<Font>>>,
+        texture: Option<Texture2D>,
+    );
     
     pub fn get_text(&self) -> String {
         self.text.clone()
+    }
+    
+    pub fn is_released(&self) -> bool {
+        self.released
     }
 }
 
@@ -233,9 +139,26 @@ impl Widget for Button {
         let mouse_pos = mouse_position();
         let mx = mouse_pos.0;
         let my = mouse_pos.1;
-
-        self.hover = mx >= x && mx <= x + size.0 && my >= y && my <= y + size.1;
-        self.click = self.hover && is_mouse_button_pressed(MouseButton::Left);
+        
+        let is_hovered = mx >= x && mx <= x + size.0 && my >= y && my <= y + size.1;
+        self.hover = is_hovered;
+        
+        if is_mouse_button_pressed(MouseButton::Left) {
+            self.pressed = is_hovered;
+            self.clicked = is_hovered;
+            // println!("按下左键 c:{}, p:{}, h:{} ",self.clicked, self.pressed, is_hovered);
+        } else {
+            self.clicked = false;
+        }
+        
+        if is_mouse_button_released(MouseButton::Left) {
+            self.released = self.pressed && is_hovered;
+            // println!("松开左键 r:{}, p:{}, h:{} ",self.released, self.pressed, is_hovered);
+            self.pressed = false;
+        } else {
+            self.released = false;
+        }
+        
         self
     }
 
@@ -277,7 +200,7 @@ impl Widget for Button {
 
 impl Action for Button {
     fn is_clicked(&self) -> bool {
-        self.click
+        self.clicked
     }
 
     fn is_hovered(&self) -> bool {

@@ -15,11 +15,11 @@ pub struct Toggle {
     hovered_text_color: Color,
     bg: Color,
     fg: Color,
+    font: Option<Rc<RefCell<Font>>>,
+    texture: Option<Texture2D>,
     hover: bool,
     toggle: bool,
     just_clicked: bool,
-    font: Option<Rc<RefCell<Font>>>,
-    texture: Option<Texture2D>
 }
 
 impl Default for Toggle {
@@ -87,126 +87,24 @@ impl Toggle {
         }
     }
     
-    pub fn with_size(self, size: impl ToPhysicalVec + 'static) -> Self {
-        Self { size: Box::new(size), ..self }
-    }
-    
-    pub fn with_center(self, center: impl Into<(f32,f32)>) -> Self {
-        Self { center: center.into(), ..self }
-    }
-    
-    pub fn with_text(self, text: String) -> Self {
-        Self { text, ..self }
-    }
-    
-    pub fn with_text_color(self, text_color: Color) -> Self {
-        Self { text_color, ..self }
-    }
-    
-    pub fn with_hovered_text_color(self, hovered_text_color: Color) -> Self {
-        Self { hovered_text_color, ..self }
-    }
-    
-    pub fn with_bg(self, bg: Color) -> Self {
-        Self { bg, ..self }
-    }
-    
-    pub fn with_fg(self, fg: Color) -> Self {
-        Self { fg, ..self }
-    }
-    
-    pub fn with_font(self, font: Rc<RefCell<Font>>) -> Self {
-        Self { font: Some(font), ..self }
-    }
-    
-    pub fn with_option_font(self, font: Option<Rc<RefCell<Font>>>) -> Self {
-        Self { font, ..self }
-    }
-    
-    pub fn without_font(self) -> Self {
-        Self { font: None , ..self }
-    }
-    
-    pub fn with_texture(self, texture: Texture2D) -> Self {
-        Self { texture: Some(texture), ..self }
-    }
-    
-    pub fn with_option_texture(self, texture: Option<Texture2D>) -> Self {
-        Self { texture, ..self }
-    }
-    
-    pub fn without_texture(self) -> Self {
-        Self { texture: None, ..self }
-    }
-    
-    pub fn size(&mut self, size: impl ToPhysicalVec + 'static) -> &mut Self {
-        self.size = Box::new(size);
-        self
-    }
-    
-    pub fn center(&mut self, center: impl Into<(f32,f32)>) -> &mut Self {
-        self.center = center.into();
-        self
-    }
-    
-    pub fn text(&mut self, text: String) -> &mut Self {
-        self.text = text;
-        self
-    }
-    
-    pub fn text_color(&mut self, text_color: Color) -> &mut Self {
-        self.text_color = text_color;
-        self
-    }
-    
-    pub fn hovered_text_color(&mut self, hovered_text_color: Color) -> &mut Self {
-        self.hovered_text_color = hovered_text_color;
-        self
-    }
-    
-    pub fn bg(&mut self, bg: Color) -> &mut Self {
-        self.bg = bg;
-        self
-    }
-    
-    pub fn fg(&mut self, fg: Color) -> &mut Self {
-        self.fg = fg;
-        self
-    }
-    
-    pub fn font(&mut self, font: Rc<RefCell<Font>>) -> &mut Self {
-        self.font = Some(font);
-        self
-    }
-    
-    pub fn non_font(&mut self) -> &mut Self {
-        self.font = None;
-        self
-    }
-    
-    pub fn set_font(&mut self, font: Option<Rc<RefCell<Font>>>) -> &mut Self {
-        self.font = font;
-        self
-    }
-    
-    pub fn texture(&mut self, texture: Texture2D) -> &mut Self {
-        self.texture = Some(texture);
-        self
-    }
-    
-    pub fn non_texture(&mut self) -> &mut Self {
-        self.texture = None;
-        self
-    }
-    
-    pub fn set_texture(&mut self, texture: Option<Texture2D>) -> &mut Self {
-        self.texture = texture;
-        self
-    }
-    
+    define_with_and_fix_methods!(
+        size: Box<dyn ToPhysicalVec>,
+        center: (f32,f32),
+        text: String,
+        text_color: Color,
+        hovered_text_color: Color,
+        bg: Color,
+        fg: Color,
+        font: Option<Rc<RefCell<Font>>>,
+        texture: Option<Texture2D>,
+    );
     
     pub fn get_text(&self) -> String {
         self.text.clone()
+    }
+    
+    pub fn is_toggled(&self) -> bool {
+        self.toggle
     }
 }
 
