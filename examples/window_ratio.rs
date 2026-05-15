@@ -18,8 +18,8 @@ async fn main() {
         
         label.draw((screen_width() / 2.0 - label.width() / 2.0, screen_height() / 2.0 - label.height() / 2.0 - 100.0));
         
-        button.process(PoS::CC);
-        button.draw(PoS::CC);
+        button.process(OneUcc::CC);
+        button.draw(OneUcc::CC);
         toggle.process((screen_width() - toggle.width() - 10.0, 10.0));
         toggle.draw((screen_width() - toggle.width() - 10.0, 10.0));
         

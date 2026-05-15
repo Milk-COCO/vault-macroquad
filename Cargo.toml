@@ -34,7 +34,7 @@ backtrace = { version = "0.3.60", optional = true }
 log = { version = "0.4", optional = true }
 parking_lot = "0.12.5"
 arboard = "3.6.1"
-derive_more = { version = "2.1.1", features = ["deref","deref_mut"] }
+derive_more = { version = "2.1.1", features = ["deref","deref_mut","add","add_assign","mul","mul_assign"] }
 async-trait = "0.1.89"
 async-recursion = "1.1.1"
 anyhow = "1.0.102"
@@ -55,3 +55,5 @@ macroquad = { path = './' }
 #miniquad = { git = "https://github.com/not-fl3/miniquad", branch = "msaa_render_texture" }
 #quad-gl = {path = './quad-gl'}
 
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(one_screenshot)'] }

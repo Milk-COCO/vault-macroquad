@@ -1,5 +1,5 @@
 use miniquad::window::screen_size;
-use macroquad::measure::{PoS, VeC};
+use macroquad::measure::{OneUcc, VeC};
 use macroquad::prelude::*;
 
 #[macroquad::main("Measure measures a measure!")]
@@ -22,9 +22,9 @@ async fn main() {
     );
     let mut screen_size = screen_size();
     loop {
-        let p1 = PoS::CT.to_physical_vec();
-        let p2 = PoS::LC.to_physical_vec();
-        let p3 = PoS::CC.to_physical_vec();
+        let p1 = OneUcc::CT.to_physical_vec();
+        let p2 = OneUcc::LC.to_physical_vec();
+        let p3 = OneUcc::CC.to_physical_vec();
         clear_background(Color::new(0.05, 0.05, 0.1, 1.0));
         if screen_size != miniquad::window::screen_size() {
             screen_size = miniquad::window::screen_size();

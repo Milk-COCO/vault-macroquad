@@ -1,7 +1,7 @@
 use crate::get_context;
 use crate::thread_assert;
 use miniquad::window::screen_size;
-use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 pub fn get_measure_ratio() -> Option<f64> {
     let context = get_context();
@@ -380,8 +380,174 @@ impl From<$TypE> for Option<$crate::math::Vec2> {
     };
 }
 pub use impl_vec;
-use crate::input::mouse_position_local;
 
+#[macro_export]
+macro_rules! impl_position_vec_type {
+    (
+        $TypE:ident,
+        $top_left:expr,
+        $bottom_right:expr
+    ) => {
+        impl $TypE {
+            pub const ZERO: Self = Self(0.0,0.0);
+            
+            pub const ONE: Self = Self(1.0,1.0);
+            
+            pub const LT: Self = Self($top_left.0, $top_left.1);
+            pub const LB: Self = Self($top_left.0, $bottom_right.1);
+            pub const RT: Self = Self($bottom_right.0, $top_left.1);
+            pub const RB: Self = Self($bottom_right.0, $bottom_right.1);
+            
+            pub const RC: Self = Self($bottom_right.0, ($top_left.1 + $bottom_right.1) / 2.0);
+            pub const LC: Self = Self($top_left.0, ($top_left.1 + $bottom_right.1) / 2.0);
+            pub const CT: Self = Self(($top_left.0 + $bottom_right.0) / 2.0, $top_left.1);
+            pub const CB: Self = Self(($top_left.0 + $bottom_right.0) / 2.0, $bottom_right.1);
+            
+            pub const CC: Self = Self(
+                ($top_left.0 + $bottom_right.0) / 2.0,
+                ($top_left.1 + $bottom_right.1) / 2.0
+            );
+        }
+
+        $crate::impl_vec!{
+            $TypE;
+        }
+
+        impl $crate::measure::ToPhysicalVec for $TypE {
+            #[inline]
+            fn to_physical_vec(&self) -> (f32, f32) {
+                use miniquad::window::screen_size;
+                use crate::measure::{get_measure_ratio, dyn_pos};
+                use crate::input::mouse_position_local;
+
+                let (screen_w, screen_h) = screen_size();
+                
+                let visible_w = get_measure_ratio().map_or(screen_w, |r| {
+                    screen_w.min((screen_h as f64 * r) as f32)
+                });
+                
+                let offset_x = (screen_w - visible_w) / 2.0;
+
+                let range_x = $bottom_right.0 - $top_left.0;
+                let range_y = $bottom_right.1 - $top_left.1;
+
+                let ratio_x = if range_x != 0.0 { (self.0 - $top_left.0) / range_x } else { 0.0 };
+                let ratio_y = if range_y != 0.0 { (self.1 - $top_left.1) / range_y } else { 0.0 };
+
+                let mut physical_x = offset_x + (ratio_x as f32) * visible_w;
+                let mut physical_y = (ratio_y as f32) * screen_h;
+
+                if let Some((fx, fy)) = dyn_pos() {
+                    let mouse = mouse_position_local();
+                    let d = (mouse.abs() + 1.0).ln();
+                    
+                    physical_x -= mouse.x.signum() * d.x * fx;
+                    physical_y -= mouse.y.signum() * d.y * fy;
+                }
+
+                (physical_x, physical_y)
+            }
+        }
+
+        impl $crate::measure::FromPhysicalVec for $TypE {
+            #[inline]
+            fn from_physical_vec(physical: (f32, f32)) -> Self {
+                use miniquad::window::screen_size;
+                use crate::measure::{get_measure_ratio};
+
+                let (screen_w, screen_h) = screen_size();
+                
+                let visible_w = get_measure_ratio().map_or(screen_w, |r| {
+                    screen_w.min((screen_h as f64 * r) as f32)
+                });
+                
+                let offset_x = (screen_w - visible_w) / 2.0;
+
+                if visible_w == 0.0 || screen_h == 0.0 {
+                    return Self::ZERO;
+                }
+
+                let ratio_x = ((physical.0 - offset_x) as f64) / (visible_w as f64);
+                let ratio_y = (physical.1 as f64) / (screen_h as f64);
+
+                let range_x = $bottom_right.0 - $top_left.0;
+                let range_y = $bottom_right.1 - $top_left.1;
+
+                let log_x = $top_left.0 + ratio_x * range_x;
+                let log_y = $top_left.1 + ratio_y * range_y;
+
+                Self(log_x, log_y)
+            }
+        }
+    };
+}
+
+
+
+/// Down-left-right 坐标
+///
+/// 坐标系定义：
+/// - 原点 (0,0): 屏幕左上角
+/// - X轴: 向右为正
+/// - Y轴: 向下为正
+/// - (1.0, 1.0): 屏幕右下角
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Dlt(pub f64, pub f64);
+
+impl_position_vec_type!(Dlt, (0.0, 0.0), (1.0, 1.0));
+
+impl From<OneUcc> for Dlt {
+    #[inline]
+    fn from(pos: OneUcc) -> Self {
+        Dlt(
+            (pos.0 + 1.0) / 2.0,
+            1.0 - (pos.1 + 1.0) / 2.0
+        )
+    }
+}
+
+/// Up-center-center 坐标
+///
+/// 坐标系定义：
+/// - 单位长度: 1.0 为一倍的屏幕宽或高
+/// - 原点 (0,0): 屏幕中心
+/// - X轴: 向右为正
+/// - Y轴: 向上为正
+/// - (-0.5,-0.5): 屏幕左下角
+/// - ( 0.5, 0.5): 屏幕右上角
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Ucc(pub f64, pub f64);
+
+impl_position_vec_type!(Ucc, (-0.5, 0.5), (0.5, -0.5));
+
+
+/// One-Up-center-center 坐标
+///
+/// 坐标系定义：
+/// - 单位长度: 1.0 为一半的屏幕宽或高
+/// - 原点 (0,0): 屏幕中心
+/// - X轴: 向右为正
+/// - Y轴: 向上为正
+/// - (-1.0,-1.0): 屏幕左下角
+/// - ( 1.0, 1.0): 屏幕右上角
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct OneUcc(pub f64, pub f64);
+
+impl_position_vec_type!(OneUcc, (-1.0, 1.0), (1.0, -1.0));
+
+impl From<Dlt> for OneUcc {
+    #[inline]
+    fn from(coo: Dlt) -> Self {
+        OneUcc(
+            coo.0 * 2.0 - 1.0,
+            1.0 - coo.1 * 2.0
+        )
+    }
+}
+
+/// 相对向量
+///
+/// n倍宽高，无偏移
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct VeC(pub f64, pub f64);
 
@@ -418,7 +584,6 @@ impl FromPhysicalVec for VeC {
         let (screen_w, screen_h) = screen_size();
         let screen_w = get_measure_ratio().map_or(screen_w, |r|screen_w.min((screen_h as f64 * r) as f32));
         
-        // 反向逻辑：(物理坐标 - 中心坐标) / 半屏尺寸 = 相对坐标（±1.0范围）
         let x = physical.0 as f64 / screen_w as f64;
         let y = physical.1 as f64 / screen_h as f64;
         Self(x, y)
@@ -426,77 +591,18 @@ impl FromPhysicalVec for VeC {
 }
 
 
-/// 相对屏幕中的坐标
-/// - 元组结构体：PoS(f64, f64)，直接创建更便捷
-/// - 0.0 → 屏幕中心，1.0 → 右/下边界，-1.0 → 左/上边界（核心修改：±1.0 对应边界）
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct PoS(pub f64, pub f64);
-
-impl PoS {
-    pub const LT: Self = Self(-1.0, 1.0);
-    pub const LB: Self = Self(-1.0, -1.0);
-    pub const RT: Self = Self(1.0, 1.0);
-    pub const RB: Self = Self(1.0, -1.0);
-    pub const RC: Self = Self(1.0, 0.0);
-    pub const LC: Self = Self(-1.0, 0.0);
-    pub const CT: Self = Self(0.0, 1.0);
-    pub const CB: Self = Self(0.0, -1.0);
-    pub const CC: Self = Self(0.0,0.0);
+pub fn half_area() -> (f32, f32) {
+    let (screen_w, screen_h) = screen_size();
+    let visible_w = get_measure_ratio().map_or(screen_w, |r|screen_w.min((screen_h as f64 * r) as f32));
+    let visible_h = screen_h;
     
-    pub const ZERO: Self = Self(0.0,0.0);
-    pub const C: Self = Self(0.0,0.0);
-    
-    fn half_area() -> (f32, f32) {
-        let (screen_w, screen_h) = screen_size();
-        let visible_w = get_measure_ratio().map_or(screen_w, |r|screen_w.min((screen_h as f64 * r) as f32));
-        let visible_h = screen_h;
-        
-        (visible_w / 2.0, visible_h / 2.0)
-    }
-    
-    fn screen_offset() -> f32 {
-        let (screen_w, _) = screen_size();
-        let (half_visible_w, _) = Self::half_area();
-        (screen_w / 2.0) - half_visible_w // 仅>16:9时≠0，≤16:9时=0
-    }
+    (visible_w / 2.0, visible_h / 2.0)
 }
 
-impl_vec!{
-    PoS;
-}
-
-impl ToPhysicalVec for PoS {
-    #[inline]
-    fn to_physical_vec(&self) -> (f32, f32) {
-        let (half_w, half_h) = Self::half_area();
-        let offset = Self::screen_offset();
-        
-        let physical_x = half_w + (self.0 as f32) * half_w + offset;
-        let physical_y = half_h - (self.1 as f32) * half_h;
-        
-        if let Some((fx,fy)) = dyn_pos() {
-            let mouse = mouse_position_local();
-            let d = (mouse.abs() + 1.0).ln() ;
-            (physical_x-mouse.x.signum() * d.x * fx, physical_y-mouse.y.signum() * d.y * fy)
-        } else {
-            (physical_x, physical_y)
-        }
-    }
-}
-
-impl FromPhysicalVec for PoS {
-    #[inline]
-    fn from_physical_vec(physical: (f32, f32)) -> Self {
-        let (half_w, half_h) = Self::half_area();
-        let offset = Self::screen_offset();
-        
-        let visible_x = physical.0 - offset;
-        
-        let x = (visible_x - half_w) as f64 / half_w as f64;
-        let y = -(physical.1 - half_h) as f64 / half_h as f64;
-        
-        Self(x, y)
-    }
+pub fn screen_offset() -> f32 {
+    let (screen_w, _) = screen_size();
+    let (half_visible_w, _) = half_area();
+    (screen_w / 2.0) - half_visible_w // 仅>16:9时≠0，≤16:9时=0
 }
 
 impl ToPhysicalVec for (f32, f32) {
@@ -513,32 +619,7 @@ impl FromPhysicalVec for (f32, f32) {
     }
 }
 
-pub struct VecExpr {
-    start: Box<dyn Fn() -> (f32,f32)>,
-    expr: Vec<Box<dyn Fn((f32,f32)) -> (f32,f32)>>,
-}
-
-impl VecExpr {
-    pub fn new( start: impl Fn() -> (f32,f32) + 'static ) -> Self {
-        let this = Self { start: Box::new(start), expr: vec![] };
-        this
-    }
-    
-    pub fn join(mut self, op: impl Fn((f32,f32)) -> (f32,f32) + 'static) -> Self {
-        self.expr.push(Box::new(op));
-        self
-    }
-}
-
-impl ToPhysicalVec for VecExpr {
-    fn to_physical_vec(&self) -> (f32, f32) {
-        let (mut x,mut y) = (self.start)();
-        for expr in self.expr.iter() {
-            (x,y) = expr.deref()((x,y));
-        }
-        (x,y)
-    }
-}
+pub type VecChain<'s> = Chain<'s, (f32, f32)>;
 
 pub trait ToPhysical {
     fn to_physical(&self) -> f32;
@@ -559,29 +640,70 @@ impl<T: ToPhysical> ToPhysical for (T,T) {
     }
 }
 
-pub struct MeasExpr {
-    start: Box<dyn Fn() -> f32>,
-    expr: Vec<Box<dyn Fn(f32) -> f32>>,
-}
+use crate::helper::chain::Chain;
+use std::f32::consts::PI;
 
-impl MeasExpr {
-    pub fn new( start: impl Fn() -> f32 + 'static ) -> Self {
-        let this = Self { start: Box::new(start), expr: vec![] };
-        this
-    }
+/// 将一个点围绕另一个基准点旋转指定角度
+///
+/// # 参数
+/// * `point`: 待旋转的点 (实现 ToPhysicalVec)
+/// * `center`: 旋转中心点 (实现 ToPhysicalVec)
+/// * `angle`: 旋转角度（度数制，顺时针为正）
+///
+/// # 返回
+/// 旋转后的物理坐标 (x, y)
+pub fn rotate_pos(
+    point: impl ToPhysicalVec,
+    center: impl ToPhysicalVec,
+    angle: f32,
+) -> (f32, f32) {
+    let (px, py) = point.to_physical_vec();
+    let (cx, cy) = center.to_physical_vec();
     
-    pub fn join(mut self, op: impl Fn(f32) -> f32 + 'static) -> Self {
-        self.expr.push(Box::new(op));
-        self
-    }
+    let dx = px - cx;
+    let dy = py - cy;
+    
+    let radians = angle * PI / 180.0;
+    let cos_r = radians.cos();
+    let sin_r = radians.sin();
+    
+    // x' = x*cos(theta) - y*sin(theta)
+    // y' = x*sin(theta) + y*cos(theta)
+    let rotated_dx = dx * cos_r - dy * sin_r;
+    let rotated_dy = dx * sin_r + dy * cos_r;
+    
+    (cx + rotated_dx, cy + rotated_dy)
 }
 
-impl ToPhysical for MeasExpr {
-    fn to_physical(&self) -> f32 {
-        let mut x = (self.start)();
-        for expr in self.expr.iter() {
-            x = expr.deref()(x);
-        }
-        x
-    }
+
+/// 计算一个点在局部坐标系下（指定原点和旋转角度）的物理坐标
+///
+/// # 参数
+/// * `point`: 局部坐标系中的点。**相对偏移量**。<br>
+///   注意：此处建议传入表示“相对大小/位移”的类型（如 [`VeC`]）。<br>
+///   ***DO NOT*** 传入包含全局偏移信息的绝对坐标（如 [`Dlt`], [`Ucc`] 等），<br>
+///   否则旋转中心可能会发生预料之外的偏移。
+/// * `origin`: 局部坐标系的原点在物理屏幕上的位置。
+/// * `angle`: 局部坐标系的旋转角度（度数制，顺时针为正）。
+///
+/// # 返回
+/// 该点在物理屏幕上的最终坐标 (x, y)
+pub fn refer_pos(
+    point: impl ToPhysicalVec,
+    origin: impl ToPhysicalVec,
+    angle: f32,
+) -> (f32, f32) {
+    let (ox, oy) = origin.to_physical_vec();
+    
+    let (dx, dy) = point.to_physical_vec();
+    
+    let rad = angle * PI / 180.0;
+    let cos_r = rad.cos();
+    let sin_r = rad.sin();
+    
+    // 新的偏移量
+    let rotated_dx = dx * cos_r - dy * sin_r;
+    let rotated_dy = dx * sin_r + dy * cos_r;
+    
+    (ox + rotated_dx, oy + rotated_dy)
 }

@@ -135,9 +135,9 @@ impl Roll {
                 let before = Self::clamp(self.delta + dr / window, self.max);
                 self.delta = before;
                 if let (Some(interval),Some(snap_threshold)) = (interval,snap_threshold) {
-                    let mut after =
+                    let after =
                         (before / interval).round() * interval;
-                    let delta = (before - after);
+                    let delta = before - after;
                     if (0.0..snap_threshold).contains(&delta.abs()) {
                         after
                     } else {

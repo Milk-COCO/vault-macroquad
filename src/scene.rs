@@ -281,6 +281,14 @@ impl SceneFlow {
             self.handle_single_action(act).await?;
         }
         
+        
+        for back in self.back.clone().into_iter().rev() {
+            if let Some(back) = self.stack.get_mut(back) {
+                let act = back.upper().await?;
+                self.handle_single_action(act).await?;
+            }
+        }
+        
         Ok(())
     }
     

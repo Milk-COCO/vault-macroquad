@@ -577,7 +577,7 @@ impl Widget for TextInput {
                 self.selection = Selection::new(self.cursor_pos);
             }
             
-            let mut long_trigger = false;
+            let long_trigger = false;
             if mouse_down && self.long_press_start.is_some() {
                 let t = self.long_press_start.unwrap().elapsed().as_millis();
                 let (ix, iy) = self.long_press_initial_pos;
@@ -586,7 +586,7 @@ impl Widget for TextInput {
                     self.context_menu_open = true;
                     self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
                     self.long_press_start = None;
-                    long_trigger = true;
+                    // long_trigger = true;
                     return;
                 }
             }

@@ -1,4 +1,5 @@
 pub mod roll;
+pub mod chain;
 
 macro_rules! define_with_methods {
     ($(,)*) => {};

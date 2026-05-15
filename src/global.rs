@@ -1,5 +1,5 @@
+use std::any::Any;
 use std::collections::HashMap;
-use std::any::{Any, TypeId};
 
 static mut GLOBAL_POOL: Option<HashMap<String, Box<dyn Any>>> = None;
 

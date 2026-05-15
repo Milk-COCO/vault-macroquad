@@ -4,6 +4,7 @@ use crate::{color::Color, get_context};
 
 use crate::quad_gl::{DrawMode, Vertex};
 use glam::{vec2, vec3, vec4, Mat4, Vec2};
+use crate::prelude::ToPhysicalVec;
 
 /// Draws a solid triangle between points `v1`, `v2`, and `v3` with a given `color`.
 pub fn draw_triangle(v1: Vec2, v2: Vec2, v3: Vec2, color: Color) {
@@ -31,19 +32,26 @@ pub fn draw_triangle_lines(v1: Vec2, v2: Vec2, v3: Vec2, thickness: f32, color: 
 
 /// Draws a solid rectangle with its top-left corner at `[x, y]` with size `[w, h]` (width going to
 /// the right, height going down), with a given `color`.
-pub fn draw_rectangle(pos: impl Into<(f32, f32)>, size: impl Into<(f32, f32)>, color: Color) {
-    let (x,y) = pos.into();
-    let (w,h) = size.into();
-    let context = get_context();
+pub fn draw_rectangle(pos: impl ToPhysicalVec, size: impl ToPhysicalVec, color: Color) {
+    let (w,h) = size.to_physical_vec();
+    if w == 0. || h == 0. || color.a == 0.0  {
+        return;
+    }
+    let (x,y) = pos.to_physical_vec();
+    
+    let x_w = x + w;
+    let y_h = y + h;
     
     #[rustfmt::skip]
     let vertices = [
-        Vertex::new(x    , y    , 0., 0.0, 0.0, color),
-        Vertex::new(x + w, y    , 0., 1.0, 0.0, color),
-        Vertex::new(x + w, y + h, 0., 1.0, 1.0, color),
-        Vertex::new(x    , y + h, 0., 0.0, 1.0, color),
+        Vertex::new(x  , y  , 0., 0.0, 0.0, color),
+        Vertex::new(x_w, y  , 0., 1.0, 0.0, color),
+        Vertex::new(x_w, y_h, 0., 1.0, 1.0, color),
+        Vertex::new(x  , y_h, 0., 0.0, 1.0, color),
     ];
     let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
+
+    let context = get_context();
     
     context.gl.texture(None);
     context.gl.draw_mode(DrawMode::Triangles);
@@ -52,9 +60,9 @@ pub fn draw_rectangle(pos: impl Into<(f32, f32)>, size: impl Into<(f32, f32)>, c
 
 /// Draws a rectangle outline with its top-left corner at `[x, y]` with size `[w, h]` (width going to
 /// the right, height going down), with a given line `thickness` and `color`.
-pub fn draw_rectangle_lines(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, thickness: f32, color: Color) {
-    let (x,y) = pos.into();
-    let (w,h) = size.into();
+pub fn draw_rectangle_lines(pos: impl ToPhysicalVec, size: impl ToPhysicalVec, thickness: f32, color: Color) {
+    let (x,y) = pos.to_physical_vec();
+    let (w,h) = size.to_physical_vec();
     let context = get_context();
     let t = thickness / 2.;
     
@@ -80,13 +88,13 @@ pub fn draw_rectangle_lines(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)
 }
 
 pub fn draw_rectangle_lines_ex(
-    pos: impl Into<(f32,f32)>,
-    size: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
+    size: impl ToPhysicalVec,
     thickness: f32,
     params: DrawRectangleParams,
 ) {
-    let (x,y) = pos.into();
-    let (w,h) = size.into();
+    let (x,y) = pos.to_physical_vec();
+    let (w,h) = size.to_physical_vec();
     
     let context = get_context();
     let tx = thickness / w;
@@ -164,9 +172,9 @@ impl Default for DrawRectangleParams {
 
 /// Draws a solid rectangle with its position at `[x, y]` with size `[w, h]`,
 /// with parameters.
-pub fn draw_rectangle_ex(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, params: DrawRectangleParams) {
-    let (x,y) = pos.into();
-    let (w,h) = size.into();
+pub fn draw_rectangle_ex(pos: impl ToPhysicalVec, size: impl ToPhysicalVec, params: DrawRectangleParams) {
+    let (x,y) = pos.to_physical_vec();
+    let (w,h) = size.to_physical_vec();
     let context = get_context();
     let transform_matrix = Mat4::from_translation(vec3(x, y, 0.0))
         * Mat4::from_axis_angle(vec3(0.0, 0.0, 1.0), params.rotation)
@@ -201,12 +209,12 @@ pub fn draw_rectangle_ex(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, 
 /// * `bottom_right` - The coordinates of the bottom-right corner `(x, y)`.
 /// * `color` - The color of the rectangle.
 pub fn draw_rectangle_corners(
-    top_left: impl Into<(f32, f32)>,
-    bottom_right: impl Into<(f32, f32)>,
+    top_left: impl ToPhysicalVec,
+    bottom_right: impl ToPhysicalVec,
     color: Color,
 ) {
-    let (tl_x, tl_y) = top_left.into();
-    let (br_x, br_y) = bottom_right.into();
+    let (tl_x, tl_y) = top_left.to_physical_vec();
+    let (br_x, br_y) = bottom_right.to_physical_vec();
     
     let context = get_context();
     
@@ -229,13 +237,13 @@ pub fn draw_rectangle_corners(
 
 /// Draws a rectangle outline defined by its top-left and bottom-right corners.
 pub fn draw_rectangle_corners_lines(
-    top_left: impl Into<(f32, f32)>,
-    bottom_right: impl Into<(f32, f32)>,
+    top_left: impl ToPhysicalVec,
+    bottom_right: impl ToPhysicalVec,
     thickness: f32,
     color: Color,
 ) {
-    let (tl_x, tl_y) = top_left.into();
-    let (br_x, br_y) = bottom_right.into();
+    let (tl_x, tl_y) = top_left.to_physical_vec();
+    let (br_x, br_y) = bottom_right.to_physical_vec();
     
     let w = br_x - tl_x;
     let h = br_y - tl_y;
@@ -249,14 +257,14 @@ pub fn draw_rectangle_corners_lines(
 /// defined by `border`, orientation defined by `vertical` (when `true`, the hexagon points along
 /// the `y` axis), and colors for outline given by `border_color` and fill by `fill_color`.
 pub fn draw_hexagon(
-    pos: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
     size: f32,
     border: f32,
     vertical: bool,
     border_color: Color,
     fill_color: Color,
 ) {
-    let (x,y) = pos.into();
+    let (x,y) = pos.to_physical_vec();
     
     let rotation = if vertical { 90. } else { 0. };
     draw_poly((x, y), 6, size, rotation, fill_color);
@@ -267,8 +275,8 @@ pub fn draw_hexagon(
 
 /// Draws a solid regular polygon centered at `[x, y]` with a given number of `sides`, `radius`,
 /// clockwise `rotation` (in degrees) and `color`.
-pub fn draw_poly(pos: impl Into<(f32,f32)>, sides: u8, radius: f32, rotation: f32, color: Color) {
-    let (x,y) = pos.into();
+pub fn draw_poly(pos: impl ToPhysicalVec, sides: u8, radius: f32, rotation: f32, color: Color) {
+    let (x,y) = pos.to_physical_vec();
     
     let context = get_context();
     
@@ -298,7 +306,7 @@ pub fn draw_poly(pos: impl Into<(f32,f32)>, sides: u8, radius: f32, rotation: f3
 /// Draws a regular polygon outline centered at `[x, y]` with a given number of `sides`, `radius`,
 /// clockwise `rotation` (in degrees), line `thickness`, and `color`.
 pub fn draw_poly_lines(
-    pos: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
     sides: u8,
     radius: f32,
     rotation: f32,
@@ -312,7 +320,7 @@ pub fn draw_poly_lines(
 ///
 /// This is not a perfect circle, but only a polygon approximation.
 /// If this is an issue for you, consider using `draw_poly(x, y, 255, r, 0., color)` instead.
-pub fn draw_circle(pos: impl Into<(f32,f32)>, r: f32, color: Color) {
+pub fn draw_circle(pos: impl ToPhysicalVec, r: f32, color: Color) {
     
     draw_poly(pos, 20, r, 0., color);
 }
@@ -321,15 +329,15 @@ pub fn draw_circle(pos: impl Into<(f32,f32)>, r: f32, color: Color) {
 ///
 /// This is not a perfect circle, but only a polygon approximation.
 /// If this is an issue for you, consider using `draw_poly_lines(x, y, 255, r, 0., thickness, color)` instead.
-pub fn draw_circle_lines(pos: impl Into<(f32,f32)>, r: f32, thickness: f32, color: Color) {
+pub fn draw_circle_lines(pos: impl ToPhysicalVec, r: f32, thickness: f32, color: Color) {
     draw_poly_lines(pos, 30, r, 0., thickness, color);
 }
 
 /// Draws a solid ellipse centered at `[x, y]` with a given size `[w, h]`,
 /// clockwise `rotation` (in degrees) and `color`.
-pub fn draw_ellipse(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, rotation: f32, color: Color) {
-    let (x,y) = pos.into();
-    let (w,h) = size.into();
+pub fn draw_ellipse(pos: impl ToPhysicalVec, size: impl ToPhysicalVec, rotation: f32, color: Color) {
+    let (x,y) = pos.to_physical_vec();
+    let (w,h) = size.to_physical_vec();
     
     let sides = 20;
     let context = get_context();
@@ -366,14 +374,14 @@ pub fn draw_ellipse(pos: impl Into<(f32,f32)>, size: impl Into<(f32,f32)>, rotat
 /// Draws an ellipse outline centered at `[x, y]` with a given size `[w, h]`,
 /// clockwise `rotation` (in degrees), line `thickness` and `color`.
 pub fn draw_ellipse_lines(
-    pos: impl Into<(f32,f32)>,
-    size: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
+    size: impl ToPhysicalVec,
     rotation: f32,
     thickness: f32,
     color: Color,
 ) {
-    let (x,y) = pos.into();
-    let (w,h) = size.into();
+    let (x,y) = pos.to_physical_vec();
+    let (w,h) = size.to_physical_vec();
     
     let sides = 20;
     
@@ -404,9 +412,9 @@ pub fn draw_ellipse_lines(
 }
 
 /// Draws a line between points `[x1, y1]` and `[x2, y2]` with a given `thickness` and `color`.
-pub fn draw_line(pos1: impl Into<(f32,f32)>, pos2: impl Into<(f32,f32)>, thickness: f32, color: Color) {
-    let (x1,y1) = pos1.into();
-    let (x2,y2) = pos2.into();
+pub fn draw_line(pos1: impl ToPhysicalVec, pos2: impl ToPhysicalVec, thickness: f32, color: Color) {
+    let (x1,y1) = pos1.to_physical_vec();
+    let (x2,y2) = pos2.to_physical_vec();
     
     let context = get_context();
     let dx = x2 - x1;
@@ -440,7 +448,7 @@ pub fn draw_line(pos1: impl Into<(f32,f32)>, pos2: impl Into<(f32,f32)>, thickne
 /// Draw arc from `rotation`(in degrees) to `arc + rotation` (`arc` in degrees),
 /// centered at `[x, y]` with a given number of `sides`, `radius`, line `thickness`, and `color`.
 pub fn draw_arc(
-    pos: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
     sides: u8,
     radius: f32,
     rotation: f32,
@@ -448,7 +456,7 @@ pub fn draw_arc(
     arc: f32,
     color: Color,
 ) {
-    let (x,y) = pos.into();
+    let (x,y) = pos.to_physical_vec();
     
     let rot = rotation.to_radians();
     let part = arc.to_radians();

@@ -36,6 +36,8 @@
 //! }
 //!```
 
+#![allow(static_mut_refs)]
+
 use miniquad::*;
 
 use std::collections::{HashMap, HashSet};
@@ -136,7 +138,7 @@ pub use macroquad_macro::main;
 #[doc(hidden)]
 pub use macroquad_macro::test;
 
-/// Cross platform random generator.
+/// Cross-platform random generator.
 pub mod rand {
     pub use quad_rand::*;
 }
