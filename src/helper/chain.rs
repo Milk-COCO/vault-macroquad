@@ -2,10 +2,42 @@ use crate::measure::ToPhysicalVec;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// 链式计算的起始点。
+///
+/// 可以是具体的值，也可以是一个生成值的工厂函数。
+#[derive(Clone)]
+pub enum ChainHead<'s, T: 's> {
+    /// 静态初始值
+    Value(T),
+    /// 动态初始值生成器
+    Fn(Rc<RefCell<Box<dyn Fn() -> T + 's>>>),
+}
+
+impl<'s, T: 's> ChainHead<'s, T> {
+    /// 若为值，clone值；
+    ///
+    /// 若为闭包，执行闭包；
+    fn run(&self) -> T
+    where T: Clone {
+        match self {
+            ChainHead::Value(v) => v.clone(),
+            ChainHead::Fn(f) => f.borrow()(),
+        }
+    }
+
+    fn cost(self) -> T {
+        match self {
+            ChainHead::Value(v) => v,
+            ChainHead::Fn(f) => f.borrow()(),
+        }
+    }
+}
+
 pub struct Chain<'s, T: 's> {
-    start: T,
+    start: ChainHead<'s,T>,
     ops: Vec<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>>,
 }
+
 
 impl<'s, T: 's + Clone> Clone for Chain<'s, T> {
     fn clone(&self) -> Self {
@@ -17,9 +49,17 @@ impl<'s, T: 's + Clone> Clone for Chain<'s, T> {
 }
 
 impl<'s,T: 's> Chain<'s, T> {
+    pub fn new_with(op: impl Fn() -> T + 's) -> Self {
+        Self { start: ChainHead::Fn(Rc::new(RefCell::new(Box::new(op)))), ops: vec![] }
+    }
+
+    pub fn new_with_raw(op: Rc<RefCell<Box<dyn Fn() -> T + 's>>>) -> Self {
+        Self { start: ChainHead::Fn(op), ops: vec![] }
+    }
+
     /// 使用初始值创建链
     pub fn new( start: T ) -> Self {
-        let this = Self { start, ops: vec![] };
+        let this = Self { start: ChainHead::Value(start), ops: vec![] };
         this
     }
 
@@ -85,11 +125,11 @@ impl<'s,T: 's> Chain<'s, T> {
         self
     }
 
-    pub fn into_raw(self) -> (T,Vec<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>>) {
+    pub fn into_raw(self) -> (ChainHead<'s,T>,Vec<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>>) {
         (self.start, self.ops)
     }
 
-    pub fn from_raw(start: T, ops: Vec<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>>) -> Self {
+    pub fn from_raw(start: ChainHead<'s,T>, ops: Vec<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>>) -> Self {
         Self { start, ops }
     }
 
@@ -101,7 +141,7 @@ impl<'s,T: 's> Chain<'s, T> {
     /// 当内部任意一个闭包panicked，panic！
     pub fn run(&self) -> T 
     where T: Clone{
-        let mut v = self.start.clone();
+        let mut v = self.start.run();
         for expr in self.ops.iter() {
             v = expr.borrow()(v);
         }
@@ -115,7 +155,7 @@ impl<'s,T: 's> Chain<'s, T> {
     /// 
     /// 当内部任意一个闭包panicked，panic！
     pub fn cost(self) -> T {
-        let mut v = self.start;
+        let mut v = self.start.cost();
         for expr in self.ops.into_iter() {
             v = expr.borrow()(v);
         }
