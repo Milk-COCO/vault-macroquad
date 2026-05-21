@@ -13,14 +13,14 @@ async fn main() {
         let r1 = ((get_time() * 200.) % 360.) as f32;
         let p1 =
             VecChain::new(p0.to_physical_vec())
-                .join( |p| rotate_pos(Ucc(0.1,0.), p, r1));
+                .join_back( |p| rotate_pos(Ucc(0.1,0.), p, r1));
         let p2 =
             p1.clone()
-                .join( |p| refer_pos(VeC(0.1,0.), p, r1));
+                .join_back( |p| refer_pos(VeC(0.1,0.), p, r1));
         let r3 = ((get_time() * 100.) % 360.) as f32;
         let p3 =
             p1.clone()
-                .join( move |p| rotate_pos(Ucc::CC, p, r3));
+                .join_back( move |p| rotate_pos(Ucc::CC, p, r3));
         
         let p1r = p1.to_physical_vec();
         draw_text(format!("p1: {:?}", p1r), (0.,0.), CTR_LT, 20.0, WHITE);
