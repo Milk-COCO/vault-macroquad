@@ -18,19 +18,21 @@ pub enum ChainHead<'s, T: 's> {
 ///
 /// 可为Rc闭包或Weak闭包
 ///
-/// Weak闭包会被自动删除
+/// Weak闭包（执行时）会被自动置为None
 #[derive(Clone)]
 pub enum ChainUnit<'s, T: 's> {
     Owned(Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>),
     Shared(Weak<RefCell<Box<dyn Fn(T) -> T + 's>>>),
+    None
 }
 
 impl<'s, T> ChainUnit<'s, T> {
-    pub fn upgrade(&self) -> Option<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>>
-    {
+    /// 得到Rc
+    pub fn upgrade(&self) -> Option<Rc<RefCell<Box<dyn Fn(T) -> T + 's>>>> {
         match self {
             ChainUnit::Owned(rc) => Some(rc.clone()),
             ChainUnit::Shared(wk) => wk.upgrade(),
+            ChainUnit::None => None
         }
     }
 }
@@ -42,6 +44,7 @@ impl<'s, T> Debug for ChainUnit<'s, T> {
             match self {
                 ChainUnit::Owned(_) => "Owned",
                 ChainUnit::Shared(_) => "Shared",
+                ChainUnit::None => "None"
             }
         ).as_str())
     }
