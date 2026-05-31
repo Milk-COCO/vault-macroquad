@@ -448,15 +448,16 @@ pub fn draw_line(pos1: impl ToPhysicalVec, pos2: impl ToPhysicalVec, thickness: 
 }
 
 /// 绘制一条以 origin 为中心，指定长度、角度、粗细的线段
-pub fn draw_segment(
+pub fn draw_line_through(
     origin: impl ToPhysicalVec,
     angle_deg: f32,
-    length: f32,
+    length: impl ToPhysical,
     thickness: impl ToPhysical,
     color: Color,
 ) {
     let (ox, oy) = origin.to_physical_vec();
     let thick = thickness.to_physical();
+    let length = length.to_physical();
 
     let rad = angle_deg.to_radians();
     let dx = rad.cos();
