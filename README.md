@@ -5,7 +5,7 @@
 
 # 我做了啥
 主要的：
-- 将所有传递坐标/大小的函数改为传入 `impl Into<(f32,f32)>`。在任何地方!
+- 将所有传递坐标/大小的函数改为传入 `impl ToPhysicalVec`。在任何地方!
 - 重写UI mod，直接把[flowquad](https://github.com/Muhtasim-Rasheed/flowquad)内建并爆改。[在这!](src/ui/mod.rs)
 - 自己写了个安全的栈场景系统。[在这!](src/scene.rs)
 - 接入了我自己写的ime preedit&commit事件。

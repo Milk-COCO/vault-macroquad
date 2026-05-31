@@ -79,18 +79,18 @@ impl Widget for Label {
         self.bg
     }
 
-    fn process(&mut self, _pos: impl Into<(f32, f32)>) -> &mut Self {
+    fn process(&mut self, _pos: impl ToPhysicalVec) -> &mut Self {
         // Nothing :D
         self
     }
 
-    fn draw(&self, pos: impl Into<(f32, f32)>) {
+    fn draw(&self, pos: impl ToPhysicalVec) {
         let size = self.size;
         let text_size = measure_text(&self.text, self.font.clone(), size, 1.0);
         let width = text_size.width;
         let height = text_size.height;
         
-        let (x, y) = modify_pos_with_center(pos.into(),self.center,(width,height));
+        let (x, y) = modify_pos_with_center(pos.to_physical_vec(),self.center,(width,height));
         let bg = self.bg;
         let fg = self.fg;
 

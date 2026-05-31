@@ -10,6 +10,7 @@ use crate::quad_gl::{DrawMode, Vertex};
 use glam::{vec2, Vec2};
 use slotmap::{TextureIdSlotMap, TextureSlotId};
 use std::sync::Arc;
+use crate::measure::ToPhysicalVec;
 
 mod slotmap;
 
@@ -514,17 +515,17 @@ impl Default for DrawTextureParams {
     }
 }
 
-pub fn draw_texture(texture: &Texture2D, pos: impl Into<(f32,f32)>, color: Color) {
+pub fn draw_texture(texture: &Texture2D, pos: impl ToPhysicalVec, color: Color) {
     draw_texture_ex(texture, pos, color, Default::default());
 }
 
 pub fn draw_texture_ex(
     texture: &Texture2D,
-    pos: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
     color: Color,
     params: DrawTextureParams,
 ) {
-    let (x,y) = pos.into();
+    let (x,y) = pos.to_physical_vec();
     
     let context = get_context();
 
@@ -860,7 +861,7 @@ impl Texture2D {
         let ctx = get_quad_context();
         let params = ctx.texture_params(texture);
         let raw_id = match unsafe { ctx.texture_raw_id(texture) } {
-            miniquad::RawId::OpenGl(id) => id,
+            RawId::OpenGl(id) => id,
             _ => unimplemented!(),
         };
         let internal_format = match params.format {

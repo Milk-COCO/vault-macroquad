@@ -13,6 +13,7 @@ use glam::vec2;
 pub(crate) mod atlas;
 
 use atlas::{Atlas, SpriteKey};
+use crate::measure::ToPhysicalVec;
 
 #[derive(Debug, Clone)]
 pub(crate) struct CharacterInfo {
@@ -304,8 +305,8 @@ pub fn load_ttf_font_from_bytes(bytes: &[u8]) -> Result<Font, Error> {
 /// Returns text size
 pub fn draw_text(
     text: impl AsRef<str>,
-    pos: impl Into<(f32, f32)>,
-    center: impl Into<(f32, f32)>,
+    pos: impl ToPhysicalVec,
+    center: impl Into<(f32,f32)>,
     font_size: f32,
     color: Color,
 ) -> TextDimensions {
@@ -438,8 +439,8 @@ pub fn measure_text_ex(
 /// 其中 `center` 决定中心在贴图的何位置。为相对坐标。左下角为 (-1.0,-1.0)
 pub fn draw_text_ex(
     text: impl AsRef<str>,
-    pos: impl Into<(f32, f32)>,
-    center: impl Into<(f32, f32)>,
+    pos: impl ToPhysicalVec,
+    center: impl Into<(f32,f32)>,
     params: TextParams
 ) -> TextDimensions {
     let text = text.as_ref();
@@ -486,8 +487,8 @@ pub(crate) fn draw_text_ex_in(
     font_scale: f32,
     font_scale_aspect: f32,
     color: Color,
-    pos: impl Into<(f32, f32)>,
-    center: impl Into<(f32, f32)>,
+    pos: impl ToPhysicalVec,
+    center: impl Into<(f32,f32)>,
 ) -> TextDimensions {
     let (center_x, center_y) = center.into(); // 提取center相对坐标
     
@@ -516,7 +517,7 @@ pub(crate) fn draw_text_ex_in(
             offset_y: oy / dpi_scaling,
         }
     }
-    let (ox, oy) = pos.into();
+    let (ox, oy) = pos.to_physical_vec();
     // dx = x×|w|×cosθ - y×|h|×sinθ
     // dy = x×|w|×sinθ + y×|h|×cosθ
     let cdx = (center_x+1.)/2.;
@@ -530,7 +531,7 @@ pub(crate) fn draw_text_ex_in(
     let data = dim.chars;
     
     for (glyph, dest) in data {
-        let new_center = vec2(x + dest.x,  y + dest.y);
+        let new_center = (x + dest.x,  y + dest.y);
         crate::texture::draw_texture_ex(
             &crate::texture::Texture2D {
                 texture: TextureHandle::Unmanaged(atlas.texture()),
@@ -541,7 +542,7 @@ pub(crate) fn draw_text_ex_in(
                 dest_size: Some(vec2(dest.w, dest.h)),
                 source: Some(glyph),
                 rotation: rot,
-                pivot: Some(new_center),
+                pivot: Some(vec2(new_center.0,new_center.1)),
                 ..Default::default()
             },
         );
@@ -558,7 +559,7 @@ pub(crate) fn draw_text_ex_in(
 /// If no line distance but a custom font is given, the fonts line gap will be used as line distance factor if it exists.
 pub fn draw_multiline_text(
     text: impl AsRef<str>,
-    pos: impl Into<(f32,f32)>,
+    pos: impl ToPhysicalVec,
     center: impl Into<(f32,f32)>,
     font_size: f32,
     line_distance_factor: Option<f32>,
@@ -582,8 +583,8 @@ pub fn draw_multiline_text(
 /// If no line distance but a custom font is given, the fonts newline size will be used as line distance factor if it exists, else default to font size.
 pub fn draw_multiline_text_ex(
     text: impl AsRef<str>,
-    pos: impl Into<(f32,f32)>,
-    center: impl Into<(f32, f32)>,
+    pos: impl ToPhysicalVec,
+    center: impl Into<(f32,f32)>,
     line_distance_factor: Option<f32>,
     params: TextParams,
 ) -> TextDimensions {
@@ -593,7 +594,7 @@ pub fn draw_multiline_text_ex(
         return TextDimensions::default();
     }
     
-    let (x, y) = pos.into();
+    let (x, y) = pos.to_physical_vec();
     let (center_x, center_y) = center.into();
     
     let font_arc = if let Some(font) = params.font {

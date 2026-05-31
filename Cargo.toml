@@ -26,11 +26,11 @@ all-features = true
 #miniquad = { git = "https://github.com/Milk-COCO/vault-miniquad/", features = ["log-impl"] }
 miniquad = { path = "../vault-miniquad", features = ["log-impl"] }
 quad-rand = "0.2.3"
-glam = { version = "0.32.1", features = ["scalar-math"] }
-image = { version = "0.24", default-features = false, features = ["png", "tga"] }
+glam = { version = "0.33.0", features = ["scalar-math"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "tga"] }
 macroquad_macro = { version = "0.1.8", path = "macroquad_macro" }
 fontdue = "0.9"
-backtrace = { version = "0.3.60", optional = true }
+backtrace = { version = "0.3.76", optional = true }
 log = { version = "0.4", optional = true }
 parking_lot = "0.12.5"
 arboard = "3.6.1"
@@ -40,6 +40,7 @@ async-recursion = "1.1.1"
 anyhow = "1.0.102"
 const-fnv1a-hash = "1.1.0"
 paste = "1.0.15"
+
 
 [dev-dependencies]
 macroquad-particles = { path = "./particles" }

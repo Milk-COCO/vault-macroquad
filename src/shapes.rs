@@ -4,7 +4,8 @@ use crate::{color::Color, get_context};
 
 use crate::quad_gl::{DrawMode, Vertex};
 use glam::{vec2, vec3, vec4, Mat4, Vec2};
-use crate::prelude::ToPhysicalVec;
+use crate::measure::ToPhysical;
+use crate::prelude::{screen_height, screen_width, ToPhysicalVec};
 
 /// Draws a solid triangle between points `v1`, `v2`, and `v3` with a given `color`.
 pub fn draw_triangle(v1: Vec2, v2: Vec2, v3: Vec2, color: Color) {
@@ -24,9 +25,9 @@ pub fn draw_triangle(v1: Vec2, v2: Vec2, v3: Vec2, color: Color) {
 }
 
 /// Draws a triangle outline between points `v1`, `v2`, and `v3` with a given line `thickness` and `color`.
-pub fn draw_triangle_lines(v1: Vec2, v2: Vec2, v3: Vec2, thickness: f32, color: Color) {
-    draw_line((v1.x, v1.y), (v2.x, v2.y), thickness, color);
-    draw_line((v2.x, v2.y), (v3.x, v3.y), thickness, color);
+pub fn draw_triangle_lines(v1: Vec2, v2: Vec2, v3: Vec2, thickness: impl ToPhysical + Clone, color: Color) {
+    draw_line((v1.x, v1.y), (v2.x, v2.y), thickness.clone(), color);
+    draw_line((v2.x, v2.y), (v3.x, v3.y), thickness.clone(), color);
     draw_line((v3.x, v3.y), (v1.x, v1.y), thickness, color);
 }
 
@@ -377,7 +378,7 @@ pub fn draw_ellipse_lines(
     pos: impl ToPhysicalVec,
     size: impl ToPhysicalVec,
     rotation: f32,
-    thickness: f32,
+    thickness: impl ToPhysical + Clone,
     color: Color,
 ) {
     let (x,y) = pos.to_physical_vec();
@@ -407,15 +408,16 @@ pub fn draw_ellipse_lines(
         
         let p1 = vec2(x + rotated_x, y + rotated_y);
         
-        draw_line((p0.x, p0.y), (p1.x, p1.y), thickness, color);
+        draw_line((p0.x, p0.y), (p1.x, p1.y), thickness.clone(), color);
     }
 }
 
 /// Draws a line between points `[x1, y1]` and `[x2, y2]` with a given `thickness` and `color`.
-pub fn draw_line(pos1: impl ToPhysicalVec, pos2: impl ToPhysicalVec, thickness: f32, color: Color) {
+pub fn draw_line(pos1: impl ToPhysicalVec, pos2: impl ToPhysicalVec, thickness: impl ToPhysical, color: Color) {
     let (x1,y1) = pos1.to_physical_vec();
     let (x2,y2) = pos2.to_physical_vec();
-    
+    let thickness = thickness.to_physical();
+
     let context = get_context();
     let dx = x2 - x1;
     let dy = y2 - y1;
@@ -442,6 +444,168 @@ pub fn draw_line(pos1: impl ToPhysicalVec, pos2: impl ToPhysicalVec, thickness: 
             Vertex::new(x2 - tx, y2 - ty, 0., 0., 0., color),
         ],
         &[0, 1, 2, 2, 1, 3],
+    );
+}
+
+/// 绘制一条以 origin 为中心，指定长度、角度、粗细的线段
+pub fn draw_segment(
+    origin: impl ToPhysicalVec,
+    angle_deg: f32,
+    length: f32,
+    thickness: impl ToPhysical,
+    color: Color,
+) {
+    let (ox, oy) = origin.to_physical_vec();
+    let thick = thickness.to_physical();
+
+    let rad = angle_deg.to_radians();
+    let dx = rad.cos();
+    let dy = rad.sin();
+
+    let half_len = length * 0.5;
+
+    let x1 = ox - dx * half_len;
+    let y1 = oy - dy * half_len;
+
+    let x2 = ox + dx * half_len;
+    let y2 = oy + dy * half_len;
+
+    draw_line((x1, y1), (x2, y2), thick, color);
+}
+
+pub fn draw_infinite_line(
+    origin: impl ToPhysicalVec,
+    angle_deg: f32,
+    thickness: impl ToPhysical,
+    color: Color,
+) {
+    let (ox, oy) = origin.to_physical_vec();
+    let thickness = thickness.to_physical().abs();
+
+    let rad = angle_deg.to_radians();
+    let dx = rad.cos();
+    let dy = rad.sin();
+    let nx = -dy;
+    let ny = dx;
+
+    let half_thick = thickness * 0.5;
+
+    let cx = screen_width() / 2.0;
+    let cy = screen_height() / 2.0;
+
+    let a = -dy;
+    let b = dx;
+    let c = dy * ox - dx * oy;
+
+    // 找到直线上离屏幕中心 (cx, cy) 最近的点
+    let dist_to_center = a * cx + b * cy + c;
+    let p0_x = cx - a * dist_to_center;
+    let p0_y = cy - b * dist_to_center;
+
+    let w = screen_width();
+    let h = screen_height();
+    let dist = (w * w + h * h).sqrt() / 2.0 + half_thick;
+
+    // 起点中心
+    let sx = p0_x - dx * dist;
+    let sy = p0_y - dy * dist;
+    // 终点中心
+    let ex = p0_x + dx * dist;
+    let ey = p0_y + dy * dist;
+
+    // 加上法线偏移
+    let p1 = (sx - nx * half_thick, sy - ny * half_thick);
+    let p2 = (sx + nx * half_thick, sy + ny * half_thick);
+    let p3 = (ex + nx * half_thick, ey + ny * half_thick);
+    let p4 = (ex - nx * half_thick, ey - ny * half_thick);
+
+    let context = get_context();
+    context.gl.texture(None);
+    context.gl.draw_mode(DrawMode::Triangles);
+    context.gl.geometry(
+        &[
+            Vertex::new(p1.0, p1.1, 0., 0., 0., color),
+            Vertex::new(p2.0, p2.1, 0., 0., 0., color),
+            Vertex::new(p3.0, p3.1, 0., 0., 0., color),
+            Vertex::new(p4.0, p4.1, 0., 0., 0., color),
+        ],
+        &[0, 1, 2, 0, 2, 3],
+    );
+}
+
+
+/// 绘制一条经过 pos1 和 pos2 的无限直线
+pub fn draw_infinite_line_through(
+    pos1: impl ToPhysicalVec,
+    pos2: impl ToPhysicalVec,
+    thickness: impl ToPhysical,
+    color: Color,
+) {
+    let (x1, y1) = pos1.to_physical_vec();
+    let (x2, y2) = pos2.to_physical_vec();
+    let thickness = thickness.to_physical().abs();
+
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+
+    // 如果两点重合，无法定义直线，直接返回或画点
+    let len_sq = dx * dx + dy * dy;
+    if len_sq < f32::EPSILON {
+        return;
+    }
+
+    // 归一化方向向量
+    let len = len_sq.sqrt();
+    let ndx = dx / len;
+    let ndy = dy / len;
+
+    let nx = -ndy;
+    let ny = ndx;
+
+    let half_thick = thickness * 0.5;
+
+    let cx = screen_width() / 2.0;
+    let cy = screen_height() / 2.0;
+
+    // 直线一般式系数 (基于单位法向量)
+    // A = nx, B = ny
+    // C = -(nx * x1 + ny * y1)  <-- 因为 (x1,y1) 在直线上
+    // 距离 dist_to_center = A*cx + B*cy + C
+    let dist_to_center = nx * cx + ny * cy - (nx * x1 + ny * y1);
+
+    // 最近点 P0 = Center - dist * Normal
+    let p0_x = cx - nx * dist_to_center;
+    let p0_y = cy - ny * dist_to_center;
+
+    let w = screen_width();
+    let h = screen_height();
+    // 对角线一半 + 半厚，确保完全覆盖
+    let dist = (w * w + h * h).sqrt() / 2.0 + half_thick;
+
+    // 起点中心
+    let sx = p0_x - ndx * dist;
+    let sy = p0_y - ndy * dist;
+    // 终点中心
+    let ex = p0_x + ndx * dist;
+    let ey = p0_y + ndy * dist;
+
+    // 加上法线偏移得到四个角
+    let p1 = (sx - nx * half_thick, sy - ny * half_thick);
+    let p2 = (sx + nx * half_thick, sy + ny * half_thick);
+    let p3 = (ex + nx * half_thick, ey + ny * half_thick);
+    let p4 = (ex - nx * half_thick, ey - ny * half_thick);
+
+    let context = get_context();
+    context.gl.texture(None);
+    context.gl.draw_mode(DrawMode::Triangles);
+    context.gl.geometry(
+        &[
+            Vertex::new(p1.0, p1.1, 0., 0., 0., color),
+            Vertex::new(p2.0, p2.1, 0., 0., 0., color),
+            Vertex::new(p3.0, p3.1, 0., 0., 0., color),
+            Vertex::new(p4.0, p4.1, 0., 0., 0., color),
+        ],
+        &[0, 1, 2, 0, 2, 3],
     );
 }
 

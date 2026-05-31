@@ -20,15 +20,15 @@ impl Selection {
     fn new(pos: usize) -> Self {
         Self { start: pos, end: pos }
     }
-    
+
     fn is_empty(&self) -> bool {
         self.start == self.end
     }
-    
+
     fn min(&self) -> usize {
         self.start.min(self.end)
     }
-    
+
     fn max(&self) -> usize {
         self.start.max(self.end)
     }
@@ -49,10 +49,10 @@ impl KeyRepeatState {
             last_repeat_time: None,
         }
     }
-    
+
     fn update(&mut self, is_down: bool) -> bool {
         let now = Instant::now();
-        
+
         if is_down {
             if !self.pressed {
                 self.pressed = true;
@@ -63,7 +63,7 @@ impl KeyRepeatState {
                 let first = self.first_press_time.unwrap();
                 let initial_delay = 0.5;
                 let repeat_interval = 0.05;
-                
+
                 if now.duration_since(first).as_secs_f32() > initial_delay {
                     if let Some(last) = self.last_repeat_time {
                         if now.duration_since(last).as_secs_f32() > repeat_interval {
@@ -94,41 +94,41 @@ pub struct TextInput {
     text: String,
     cursor_pos: usize,
     selection: Selection,
-    
+
     text_color: Color,
     hovered_text_color: Color,
     bg: Color,
     fg: Color,
     placeholder: Option<String>,
     placeholder_color: Color,
-    
+
     hover: bool,
     clicked: bool,
     selected: bool,
-    
+
     font: Option<Rc<RefCell<Font>>>,
     width: f32,
     height: f32,
-    
+
     center: (f32,f32),
-    
+
     cursor_blink_timer: f32,
     cursor_visible: bool,
-    
+
     is_password: bool,
     max_length: Option<usize>,
-    
+
     is_dragging: bool,
     just_submitted: bool,
-    
+
     last_click_time: Option<Instant>,
     last_click_pos: (f32, f32),
-    
+
     key_left: KeyRepeatState,
     key_right: KeyRepeatState,
     key_backspace: KeyRepeatState,
     key_delete: KeyRepeatState,
-    
+
     long_press_start: Option<Instant>,
     long_press_initial_pos: (f32, f32),
     context_menu_open: bool,
@@ -160,45 +160,45 @@ impl TextInput {
         menu_container.add_child(Button::new((75.0, 28.0), CTR_LT, "Cut".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
         menu_container.add_child(Button::new((75.0, 28.0), CTR_LT, "Copy".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
         menu_container.add_child(Button::new((75.0, 28.0), CTR_LT, "Paste".to_string(), text_color, hovered_text_color, bg, fg, font.clone(), None));
-        
+
         Self {
             text: String::new(),
             cursor_pos: 0,
             selection: Selection::new(0),
-            
+
             text_color,
             hovered_text_color,
             bg,
             fg,
             placeholder: None,
             placeholder_color: Color::new(0.5, 0.5, 0.5, 1.0),
-            
+
             hover: false,
             clicked: false,
             selected: false,
-            
+
             font,
             width,
             height,
             center: center.into(),
-            
+
             cursor_blink_timer: 0.0,
             cursor_visible: true,
-            
+
             is_password: false,
             max_length,
-            
+
             is_dragging: false,
             just_submitted: false,
-            
+
             last_click_time: None,
             last_click_pos: (0.0, 0.0),
-            
+
             key_left: KeyRepeatState::new(),
             key_right: KeyRepeatState::new(),
             key_backspace: KeyRepeatState::new(),
             key_delete: KeyRepeatState::new(),
-            
+
             long_press_start: None,
             long_press_initial_pos: (0.0, 0.0),
             context_menu_open: false,
@@ -206,17 +206,17 @@ impl TextInput {
             context_menu_container: menu_container,
         }
     }
-    
+
     pub fn with_placeholder(mut self, text: impl Into<String>) -> Self {
         self.placeholder = Some(text.into());
         self
     }
-    
+
     pub fn with_password(mut self, is_password: bool) -> Self {
         self.is_password = is_password;
         self
     }
-    
+
     pub fn with_max_length(mut self, max: usize) -> Self {
         self.max_length = Some(max.max(1));
         if let Some(max) = self.max_length {
@@ -226,31 +226,31 @@ impl TextInput {
         }
         self
     }
-    
+
     pub fn get_text(&self) -> String {
         self.text.clone()
     }
     pub fn set_text(&mut self, text: impl Into<String>) {
         let new_text = text.into();
         self.text = new_text;
-        
+
         let count = self.text.chars().count();
         self.cursor_pos = self.cursor_pos.min(count);
         self.selection = Selection::new(0);
     }
-    
+
     pub fn clear(&mut self) {
         self.set_text("");
     }
-    
+
     pub fn is_submitted(&self) -> bool {
         self.just_submitted
     }
-    
+
     fn char_idx_to_byte_idx(&self, s: &str, char_idx: usize) -> usize {
         s.chars().take(char_idx).map(|c| c.len_utf8()).sum()
     }
-    
+
     fn display_text(&self) -> String {
         if self.is_password {
             "*".repeat(self.text.chars().count())
@@ -258,7 +258,7 @@ impl TextInput {
             self.text.clone()
         }
     }
-    
+
     fn find_word_boundary(&self, mut pos: usize, forward: bool) -> usize {
         let chars: Vec<char> = self.text.chars().collect();
         if forward {
@@ -278,7 +278,7 @@ impl TextInput {
         }
         pos
     }
-    
+
     fn measure_ex(&self, text: &str) -> TextDimensionsEx {
         measure_text_ex(
             text,
@@ -289,36 +289,36 @@ impl TextInput {
             1.0,
         )
     }
-    
+
     fn measure_prefix_width(&self, chars: impl Iterator<Item = char>) -> f32 {
         let s: String = chars.collect();
         self.measure_ex(&s).width
     }
-    
+
     fn text_width(&self, text: &str) -> f32 {
         self.measure_ex(text).width
     }
-    
+
     fn check_double_click(&mut self, mouse_pos: (f32, f32)) -> bool {
         let now = Instant::now();
         let (mx, my) = mouse_pos;
-        
+
         if let Some(last_time) = self.last_click_time {
             let (last_x, last_y) = self.last_click_pos;
             let time_diff = now.duration_since(last_time).as_millis();
             let pos_diff = ((mx - last_x).powi(2) + (my - last_y).powi(2)).sqrt();
-            
+
             if time_diff < 300 && pos_diff < 5.0 {
                 self.last_click_time = None;
                 return true;
             }
         }
-        
+
         self.last_click_time = Some(now);
         self.last_click_pos = mouse_pos;
         false
     }
-    
+
     fn delete_selection(&mut self) {
         let sel = self.selection;
         {
@@ -327,7 +327,7 @@ impl TextInput {
                 let end_char = sel.max();
                 let start_byte = self.char_idx_to_byte_idx(&self.text, start_char);
                 let end_byte = self.char_idx_to_byte_idx(&self.text, end_char);
-                
+
                 let mut new_text = String::with_capacity(self.text.len());
                 new_text.push_str(&self.text[..start_byte]);
                 new_text.push_str(&self.text[end_byte..]);
@@ -336,34 +336,34 @@ impl TextInput {
             }
         }
     }
-    
+
     fn insert(&mut self, text: &str) {
         self.delete_selection();
         let len = text.len();
         if len == 0 { return; }
         let old_cursor_char = self.cursor_pos;
         let old_cursor_byte = self.char_idx_to_byte_idx(&self.text, old_cursor_char);
-        
+
         let mut new_text = String::with_capacity(self.text.len() + len);
         new_text.push_str(&self.text[..old_cursor_byte]);
         new_text.push_str(text);
         new_text.push_str(&self.text[old_cursor_byte..]);
-        
+
         self.set_text(new_text);
         self.cursor_pos = old_cursor_char + text.chars().count();
         self.cursor_visible = true;
         self.cursor_blink_timer = 0.0;
     }
-    
+
     fn calculate_clamped_menu_pos(&self, initial_pos: (f32, f32)) -> (f32, f32) {
         let menu_width = self.context_menu_container.width();
         let menu_height = self.context_menu_container.height();
         let screen_w = screen_width();
         let screen_h = screen_height();
-        
+
         let mut x = initial_pos.0;
         let mut y = initial_pos.1;
-        
+
         if x + menu_width > screen_w {
             x = screen_w - menu_width;
         }
@@ -376,10 +376,10 @@ impl TextInput {
         if y < 0.0 {
             y = 0.0;
         }
-        
+
         (x, y)
     }
-    
+
     pub fn draw_context_menu(&self) {
         if self.context_menu_open {
             self.context_menu_container.draw(self.context_menu_pos);
@@ -391,43 +391,43 @@ impl Widget for TextInput {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-    
+
     fn width(&self) -> f32 {
         self.width
     }
-    
+
     fn height(&self) -> f32 {
         self.height
     }
-    
+
     fn bg(&self) -> Color {
         self.bg
     }
-    
-    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
+
+    fn process(&mut self, pos: impl ToPhysicalVec) -> &mut Self {
         (|| {
-            let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
+            let (x, y) = modify_pos_with_center(pos.to_physical_vec(),self.center,(self.width,self.height));
             let mouse_pos = mouse_position();
             let mx = mouse_pos.0;
             let my = mouse_pos.1;
-            
+
             let padding = 4.0;
-            
+
             self.clicked = false;
             self.just_submitted = false;
-            
+
             self.hover = mx >= x && mx <= x + self.width && my >= y && my <= y + self.height;
-            
+
             let clicked = is_mouse_button_pressed(MouseButton::Left);
             let mouse_down = is_mouse_button_down(MouseButton::Left);
-            
+
             if self.context_menu_open {
                 self.context_menu_container.process(self.context_menu_pos);
-                
+
                 if let Some(cut_btn) = self.context_menu_container.child_as::<Button>(0) {
                     if cut_btn.is_released() {
                         let sel = self.selection;
@@ -458,7 +458,7 @@ impl Widget for TextInput {
                         self.is_dragging = false;
                     }
                 }
-                
+
                 if let Some(copy_btn) = self.context_menu_container.child_as::<Button>(1) {
                     if copy_btn.is_released() {
                         let sel = self.selection;
@@ -484,7 +484,7 @@ impl Widget for TextInput {
                         self.is_dragging = false;
                     }
                 }
-                
+
                 if let Some(paste_btn) = self.context_menu_container.child_as::<Button>(2) {
                     if paste_btn.is_released() {
                         if let Ok(mut clipboard) = Clipboard::new() {
@@ -505,7 +505,7 @@ impl Widget for TextInput {
                         self.is_dragging = false;
                     }
                 }
-                
+
                 if clicked {
                     let menu_rect = Rect::new(
                         self.context_menu_pos.0,
@@ -521,24 +521,24 @@ impl Widget for TextInput {
                 }
                 return;
             }
-            
+
             let right_clicked = is_mouse_button_pressed(MouseButton::Right);
             if right_clicked && self.hover {
                 self.context_menu_open = true;
                 self.context_menu_pos = self.calculate_clamped_menu_pos(mouse_pos);
                 return;
             }
-            
+
             if clicked && self.hover {
                 self.long_press_start = Some(Instant::now());
                 self.long_press_initial_pos = mouse_pos;
                 self.selected = true;
                 self.clicked = true;
             }
-            
+
             let threshold = screen_width().min(screen_height()) * 0.01;
             let mut cancel_long_press = false;
-            
+
             if mouse_down && self.long_press_start.is_some() {
                 let (ix, iy) = self.long_press_initial_pos;
                 let dist = ((mx - ix).powi(2) + (my - iy).powi(2)).sqrt();
@@ -546,21 +546,21 @@ impl Widget for TextInput {
                     cancel_long_press = true;
                 }
             }
-            
+
             if cancel_long_press {
                 self.long_press_start = None;
                 self.is_dragging = true;
-                
+
                 let display_text = self.display_text();
                 let avail = self.width - padding * 2.0;
                 let total_w = self.text_width(&display_text);
-                
+
                 let mut scroll = 0.0;
                 if total_w > avail {
                     let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
                 }
-                
+
                 let target = mx - x - padding + scroll;
                 let mut accum = 0.0;
                 let mut new_pos = 0;
@@ -572,11 +572,11 @@ impl Widget for TextInput {
                     accum += w;
                     new_pos = i + 1;
                 }
-                
+
                 self.cursor_pos = new_pos;
                 self.selection = Selection::new(self.cursor_pos);
             }
-            
+
             let long_trigger = false;
             if mouse_down && self.long_press_start.is_some() {
                 let t = self.long_press_start.unwrap().elapsed().as_millis();
@@ -590,11 +590,11 @@ impl Widget for TextInput {
                     return;
                 }
             }
-            
+
             if !mouse_down && self.long_press_start.is_some() && !long_trigger {
                 self.is_dragging = true;
                 let double = self.check_double_click(mouse_pos);
-                
+
                 let display_text = self.display_text();
                 let avail = self.width - padding * 2.0;
                 let total_w = self.text_width(&display_text);
@@ -603,7 +603,7 @@ impl Widget for TextInput {
                     let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
                 }
-                
+
                 let target = mx - x - padding + scroll;
                 let mut accum = 0.0;
                 let mut new_pos = 0;
@@ -615,9 +615,9 @@ impl Widget for TextInput {
                     accum += w;
                     new_pos = i + 1;
                 }
-                
+
                 self.cursor_pos = new_pos;
-                
+
                 if double {
                     let s = self.find_word_boundary(self.cursor_pos, false);
                     let e = self.find_word_boundary(self.cursor_pos, true);
@@ -625,12 +625,12 @@ impl Widget for TextInput {
                 } else {
                     self.selection = Selection::new(self.cursor_pos);
                 }
-                
+
                 self.cursor_visible = true;
                 self.cursor_blink_timer = 0.0;
                 self.long_press_start = None;
             }
-            
+
             if self.is_dragging && mouse_down {
                 let display_text = self.display_text();
                 let avail = self.width - padding * 2.0;
@@ -640,7 +640,7 @@ impl Widget for TextInput {
                     let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll = (cursor_w - avail / 2.0).max(0.0).min(total_w - avail);
                 }
-                
+
                 let target = mx - x - padding + scroll;
                 let mut accum = 0.0;
                 let mut pos = 0;
@@ -652,13 +652,13 @@ impl Widget for TextInput {
                     accum += w;
                     pos = i + 1;
                 }
-                
+
                 self.selection.end = pos;
                 self.cursor_pos = pos;
             } else if !mouse_down {
                 self.is_dragging = false;
             }
-            
+
             if clicked && !self.hover {
                 self.selected = false;
                 self.is_dragging = false;
@@ -666,22 +666,22 @@ impl Widget for TextInput {
                 self.long_press_start = None;
                 window::set_ime_enabled(false);
             }
-            
+
             if self.selected && is_key_pressed(KeyCode::Escape) {
                 self.selected = false;
                 self.selection = Selection::new(0);
                 window::set_ime_enabled(false);
             }
-            
+
             if self.selected {
                 window::set_ime_enabled(true);
-                
+
                 self.cursor_blink_timer += get_frame_time();
                 if self.cursor_blink_timer > 0.5 {
                     self.cursor_blink_timer = 0.0;
                     self.cursor_visible = !self.cursor_visible;
                 }
-                
+
                 let display_text = self.display_text();
                 let available_width = self.width - 8.0;
                 let total_width = self.text_width(&display_text);
@@ -690,13 +690,13 @@ impl Widget for TextInput {
                     let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                     scroll_offset = (cursor_w - available_width * 0.5).max(0.0).min(total_width - available_width);
                 }
-                
+
                 let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
                 let (win_x, win_y) = window::get_window_position();
                 let cx = win_x as f32 + x + 4.0 + cursor_w - scroll_offset;
                 let cy = win_y as f32 + y + self.height * 0.5 - 8.0;
                 window::set_ime_position(cx as i32, cy as i32);
-                
+
                 let mut input = String::new();
                 if let Some(ref t) = get_context().ime_commit_string {
                     // info!("{}",t);
@@ -706,7 +706,7 @@ impl Widget for TextInput {
                     if preedit.is_empty() {
                         let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
                         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
-                        
+
                         if ctrl && is_key_pressed(KeyCode::A) {
                             self.selection = Selection { start: 0, end: self.text.chars().count() };
                             self.cursor_pos = self.text.chars().count();
@@ -772,7 +772,7 @@ impl Widget for TextInput {
                                 }
                             }
                         }
-                        
+
                         if self.key_left.update(is_key_down(KeyCode::Left)) {
                             if ctrl {
                                 self.cursor_pos = self.find_word_boundary(self.cursor_pos, false);
@@ -794,7 +794,7 @@ impl Widget for TextInput {
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
-                        
+
                         if is_key_pressed(KeyCode::Home) {
                             self.cursor_pos = 0;
                             if !shift { self.selection = Selection::new(0); } else { self.selection.end = 0; }
@@ -808,7 +808,7 @@ impl Widget for TextInput {
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
-                        
+
                         if self.key_backspace.update(is_key_down(KeyCode::Backspace)) {
                             self.delete_selection();
                             let oc = self.cursor_pos;
@@ -840,11 +840,11 @@ impl Widget for TextInput {
                             self.cursor_visible = true;
                             self.cursor_blink_timer = 0.0;
                         }
-                        
+
                         if is_key_pressed(KeyCode::Enter) {
                             self.just_submitted = true;
                         }
-                        
+
                         while let Some(key) = get_char_pressed() {
                             if !key.is_control() {
                                 input.push(key);
@@ -857,13 +857,13 @@ impl Widget for TextInput {
                 }
                 if !input.is_empty() { self.insert(&input); }
             }
-            
+
             if let Some(max) = self.max_length {
                 let char_count = self.text.chars().count();
                 if char_count > max {
                     let truncated: String = self.text.chars().take(max).collect();
                     self.text = truncated;
-                    
+
                     let new_count = self.text.chars().count();
                     if self.cursor_pos > new_count {
                         self.cursor_pos = new_count;
@@ -874,21 +874,21 @@ impl Widget for TextInput {
         })();
         self
     }
-    
-    fn draw(&self, pos: impl Into<(f32,f32)>) {
-        let (x, y) = modify_pos_with_center(pos.into(),self.center,(self.width,self.height));
+
+    fn draw(&self, pos: impl ToPhysicalVec) {
+        let (x, y) = modify_pos_with_center(pos.to_physical_vec(),self.center,(self.width,self.height));
         let bg = if self.hover || self.selected { self.fg } else { self.bg };
         let fg = if self.hover || self.selected { self.bg } else { self.fg };
-        
+
         draw_rectangle((x, y), (self.width, self.height), bg);
-        
+
         let size = self.height * 0.4;
         let padding = 4.0;
         let available_width = self.width - padding * 2.0;
         let display_text = self.display_text();
-        
+
         let total_width = self.text_width(&display_text);
-        
+
         let mut scroll_offset = 0.0;
         if total_width > available_width {
             let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
@@ -896,7 +896,7 @@ impl Widget for TextInput {
                 .max(0.0)
                 .min(total_width - available_width);
         }
-        
+
         if self.selected {
             let sel = self.selection;
             {
@@ -905,19 +905,19 @@ impl Widget for TextInput {
                     let e = sel.max();
                     let start_x = self.measure_prefix_width(display_text.chars().take(s));
                     let sel_w = self.measure_prefix_width(display_text.chars().skip(s).take(e - s));
-                    
+
                     let sx = x + padding + start_x - scroll_offset;
                     draw_rectangle((sx, y + 8.0), (sel_w, self.height - 16.0), Color::new(0.3, 0.5, 1.0, 0.5));
                 }
             }
         }
-        
+
         if self.text.is_empty() && self.placeholder.is_some() {
             let ph = self.placeholder.as_ref().unwrap();
             let dim = self.measure_ex(ph);
             let cx = x + self.width * 0.5 - dim.width * 0.5;
             let cy = y + self.height * 0.5 + dim.height * 0.25;
-            
+
             draw_text_ex(
                 ph,
                 (cx, cy),
@@ -932,7 +932,7 @@ impl Widget for TextInput {
             );
         } else {
             let text_color = if self.hover || self.selected { self.hovered_text_color } else { self.text_color  };
-            
+
             let mut visible_text = String::new();
             let mut accumulated_width = 0.0;
             for c in display_text.chars() {
@@ -945,11 +945,11 @@ impl Widget for TextInput {
                 }
                 accumulated_width += char_w;
             }
-            
+
             let dim = self.measure_ex(&visible_text);
             let text_x = x + padding;
             let text_y = y + self.height * 0.5 + dim.height * 0.25;
-            
+
             draw_text_ex(
                 &visible_text,
                 (text_x, text_y),
@@ -967,7 +967,7 @@ impl Widget for TextInput {
                 let base_x = text_x + self.measure_prefix_width(
                     display_text.chars().take(self.cursor_pos)
                 ) - scroll_offset;
-                
+
                 draw_text_ex(
                     preedit,
                     (base_x, text_y),
@@ -988,13 +988,13 @@ impl Widget for TextInput {
                 );
             }
         }
-        
+
         if self.selected && self.cursor_visible {
             let cursor_w = self.measure_prefix_width(display_text.chars().take(self.cursor_pos));
             let cx = x + padding + cursor_w - scroll_offset;
             draw_line((cx, y + 8.0), (cx, y + self.height - 8.0), 2.0, fg);
         }
-        
+
         draw_rectangle_lines((x, y), (self.width, self.height), 2.0, fg);
     }
 }
@@ -1003,7 +1003,7 @@ impl Action for TextInput {
     fn is_clicked(&self) -> bool {
         self.clicked
     }
-    
+
     fn is_hovered(&self) -> bool {
         self.hover
     }

@@ -5,7 +5,7 @@ As you could see, `vaultquad` is my personal [`macroquad`](https://github.com/no
 
 # What have I done
 major:
-- Change all functions that transfer coordinates/sizes to pass in 'impl Into<(f32, f32)>'. Anywhere!
+- Change all functions that transfer coordinates/sizes to pass in [`impl ToPhysicalVec`](src/measure.rs). At anywhere!
 - Rewrite the UI mod with modified [flowquad](https://github.com/Muhtasim-Rasheed/flowquad). [Here!](src/ui/mod.rs)
 - Write a stack scene system. [Here!](src/scene.rs)
 - Connected to the ime preedit&comment event.

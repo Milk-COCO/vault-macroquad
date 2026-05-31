@@ -59,9 +59,9 @@ pub trait Widget: Any + IntoWidgetOption {
     /// Returns the background color of the widget.
     fn bg(&self) -> Color;
     /// Updates the widget's state based on its position.
-    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self;
+    fn process(&mut self, pos: impl ToPhysicalVec) -> &mut Self;
     /// Renders the widget at the specified position.
-    fn draw(&self, pos: impl Into<(f32,f32)>);
+    fn draw(&self, pos: impl ToPhysicalVec);
 }
 
 /// 标记trait
@@ -162,16 +162,16 @@ macro_rules! impl_widget_option {
                 }
             }
             
-            fn process(&mut self, pos: impl Into<(f32, f32)>) -> &mut Self {
-                let pos = pos.into();
+            fn process(&mut self, pos: impl ToPhysicalVec) -> &mut Self {
+                let pos = pos.to_physical_vec();
                 match self {
                     $(Self::$variant(v) => { v.process(pos); }),*
                 }
                 self
             }
             
-            fn draw(&self, pos: impl Into<(f32, f32)>) {
-                let pos = pos.into();
+            fn draw(&self, pos: impl ToPhysicalVec) {
+                let pos = pos.to_physical_vec();
                 match self {
                     $(Self::$variant(v) => { v.draw(pos); }),*
                 }

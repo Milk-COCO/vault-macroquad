@@ -15,11 +15,11 @@ pub fn set_measure_ratio(r: Option<f64>) {
 
 static mut DYN_POS: Option<(f32,f32)> = None;
 
-pub fn set_dyn_pos(factor: impl Into<(f32,f32)>) {
+pub fn set_dyn_pos(factor: impl ToPhysicalVec) {
     thread_assert::same_thread();
     #[cfg(not(target_os = "android"))]
     unsafe {
-        DYN_POS = Some(factor.into());
+        DYN_POS = Some(factor.to_physical_vec());
     }
 }
 
@@ -619,24 +619,35 @@ impl FromPhysicalVec for (f32, f32) {
     }
 }
 
+impl ToPhysicalVec for (f64, f64) {
+    #[inline]
+    fn to_physical_vec(&self) -> (f32, f32) {
+        (self.0 as f32, self.1 as f32)
+    }
+}
+
 pub type VecChain<'s> = Chain<'s, (f32, f32)>;
 
 pub trait ToPhysical {
     fn to_physical(&self) -> f32;
 }
 
+impl ToPhysical for f32 {
+    fn to_physical(&self) -> f32 {
+        *self
+    }
+}
+
+impl ToPhysical for f64 {
+    fn to_physical(&self) -> f32 {
+        *self as f32
+    }
+}
+
 impl<T: ToPhysicalVec> ToPhysical for T {
     fn to_physical(&self) -> f32 {
         let (x,y) = self.to_physical_vec();
         x + y
-    }
-}
-
-
-impl<T: ToPhysical> ToPhysical for (T,T) {
-    fn to_physical(&self) -> f32 {
-        let (x,y) = self;
-        x.to_physical() + y.to_physical()
     }
 }
 
@@ -654,11 +665,11 @@ use std::f32::consts::PI;
 /// 旋转后的物理坐标 (x, y)
 pub fn rotate_pos(
     point: impl ToPhysicalVec,
-    center: impl ToPhysicalVec,
+    center: impl Into<(f32,f32)>,
     angle: f32,
 ) -> (f32, f32) {
     let (px, py) = point.to_physical_vec();
-    let (cx, cy) = center.to_physical_vec();
+    let (cx, cy) = center.into();
     
     let dx = px - cx;
     let dy = py - cy;

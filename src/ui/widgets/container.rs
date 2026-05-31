@@ -156,10 +156,10 @@ impl Widget for Container {
         self.bg
     }
 
-    fn process(&mut self, pos: impl Into<(f32,f32)>) -> &mut Self {
+    fn process(&mut self, pos: impl ToPhysicalVec) -> &mut Self {
         let width = self.width();
         let height = self.height();
-        let (x, y) = modify_pos_with_center(pos.into(),self.center,(width,height));
+        let (x, y) = modify_pos_with_center(pos.to_physical_vec(),self.center,(width,height));
         let (pad_left, pad_right, pad_top, pad_bottom) = self.padding.unwrap_or((0.0, 0.0, 0.0, 0.0));
         
         let container_width = width - pad_left - pad_right;
@@ -201,10 +201,10 @@ impl Widget for Container {
         self
     }
 
-    fn draw(&self, pos: impl Into<(f32,f32)>) {
+    fn draw(&self, pos: impl ToPhysicalVec) {
         let width = self.width();
         let height = self.height();
-        let (x, y) = modify_pos_with_center(pos.into(),self.center,(width,height));
+        let (x, y) = modify_pos_with_center(pos.to_physical_vec(),self.center,(width,height));
         
         let (pad_left, pad_right, pad_top, pad_bottom) = self.padding.unwrap_or((0.0, 0.0, 0.0, 0.0));
         let padded_x = x + pad_left;
