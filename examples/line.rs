@@ -38,25 +38,45 @@ async fn main() {
         if is_key_pressed(KeyCode::Key3) { mode = 3; }
         if is_key_pressed(KeyCode::Key4) { mode = 4; }
 
-        // --- 你的原始指数加速逻辑 ---
         let mut speed = 5.0;
         let mut rad = 0.1;
-        if is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl) {
-            speed *= speed;
-            rad *= 10.;
+        macro_rules! speed_up_with {
+            ($key: expr) => {
+                if is_key_down($key) {
+                    speed *= speed;
+                    rad *= 10.;
+                }
+            };
         }
-        if is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift) {
-            speed *= speed;
-            rad *= 10.;
+
+
+        macro_rules! speed_100_with {
+            ($key: expr) => {
+                if is_key_down($key) {
+                    speed *= 100.;
+                    rad *= 10.;
+                }
+            };
         }
-        if is_key_down(KeyCode::LeftAlt) || is_key_down(KeyCode::RightAlt) {
-            speed *= speed;
-            rad *= 10.;
+        macro_rules! speed_down_with {
+            ($key: expr) => {
+                if is_key_down($key) {
+                    speed = 1./speed;
+                    rad /= 1000.;
+                }
+            };
         }
-        if is_key_down(KeyCode::CapsLock) {
-            speed *= speed;
-            rad *= 10.;
-        }
+        speed_up_with!(KeyCode::LeftControl);
+        speed_up_with!(KeyCode::LeftShift);
+        speed_up_with!(KeyCode::LeftAlt);
+        speed_up_with!(KeyCode::CapsLock);
+        speed_100_with!(KeyCode::RightControl);
+        speed_100_with!(KeyCode::RightShift);
+        speed_100_with!(KeyCode::RightAlt);
+        speed_down_with!(KeyCode::C);
+        speed_down_with!(KeyCode::V);
+        speed_down_with!(KeyCode::X);
+        speed_down_with!(KeyCode::Z);
 
         // --- 控制逻辑 ---
         match mode {
@@ -172,7 +192,7 @@ async fn main() {
                 }
             },
             4 => {
-                draw_segment(
+                draw_line_through(
                     (origin_x, origin_y),
                     angle as f32,
                     seg_length as f32,
@@ -204,9 +224,9 @@ async fn main() {
         };
 
         let points_info = match mode {
-            1 => format!("({}, {})\n", origin_x, origin_y),
-            2|3 => format!("P1: ({}, {})\nP2: ({}, {})", p1_x, p1_y, p2_x, p2_y),
-            4 => format!("({}, {})\nLen = {}", origin_x, origin_y, seg_length),
+            1 => format!("({}, {})\nAngle: {}\n", origin_x, origin_y, angle),
+            2|3 => format!("P1: ({}, {})\nP2: ({}, {})\n", p1_x, p1_y, p2_x, p2_y),
+            4 => format!("({}, {})\nAngle: {}\nLen = {}", origin_x, origin_y, angle, seg_length),
             _ => "Unknown".parse().unwrap()
         };
 

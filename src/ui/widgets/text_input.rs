@@ -227,6 +227,12 @@ impl TextInput {
         self
     }
 
+    pub fn with_size(mut self, width: f32, height: f32) -> Self {
+        self.width = width;
+        self.height = height;
+        self
+    }
+
     pub fn get_text(&self) -> String {
         self.text.clone()
     }

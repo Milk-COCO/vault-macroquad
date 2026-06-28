@@ -1,5 +1,7 @@
 pub mod roll;
 pub mod chain;
+pub mod watch;
+pub mod viewport;
 
 macro_rules! define_with_methods {
     ($(,)*) => {};
